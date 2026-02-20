@@ -23,7 +23,7 @@ logger = get_logger(__name__)
 # Configure the Gemini client once at module level
 genai.configure(api_key=GEMINI_API_KEY)
 
-_model = genai.GenerativeModel("gemini-2.5-flash-preview-05-20")
+_model = genai.GenerativeModel("gemini-2.5-flash")
 
 # ── System prompt for the AI ─────────────────────────────
 
