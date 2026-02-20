@@ -6,6 +6,7 @@ from the .env file and exposes them as typed constants.
 """
 
 import os
+from urllib.parse import quote_plus
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -25,7 +26,7 @@ DB_USER: str = os.getenv("DB_USER", "botbudget_user")
 DB_PASS: str = os.getenv("DB_PASS", "")
 
 DATABASE_URL: str = (
-    f"postgresql://{DB_USER}:{DB_PASS}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
+    f"postgresql://{DB_USER}:{quote_plus(DB_PASS)}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
 )
 
 # ── Security ──────────────────────────────────────────────
