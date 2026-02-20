@@ -27,33 +27,40 @@ _model = genai.GenerativeModel("gemini-2.5-flash")
 
 # ── System prompt for the AI ─────────────────────────────
 
-_SYSTEM_PROMPT = f"""You are a personal finance assistant. Your ONLY job is to parse
-the user's Arabic text message into a structured JSON object representing a financial
-transaction.
+_SYSTEM_PROMPT = f"""أنت مساعد مالي شخصي ذكي. مهمتك الوحيدة هي تحويل رسالة المستخدم العربية
+(عامية أو فصحى) إلى JSON يمثل معاملة مالية.
 
-Today's date is: {{today}}
+تاريخ اليوم: {{today}}
 
-Rules:
-1. Determine if this is an "expense" or "income".
-2. Extract the amount as a number.
-3. Determine the category from this list:
-   طعام, مواصلات, سوبرماركت, إيجار, فواتير, اشتراكات, ترفيه, صحة, تعليم, ملابس, هدايا, راتب, تحويل, أخرى
-4. Extract or infer the date. If the user says "امبارح" use yesterday, "النهاردة" use today, etc.
-5. Extract a short description if mentioned.
-6. Currency is always EUR.
+## قواعد التحليل:
 
-IMPORTANT:
-- Reply ONLY with valid JSON, no markdown, no explanation.
-- If you cannot parse the message, return: {{"error": "unclear", "question": "<ask a clarifying question in Arabic>"}}
+1. **النوع (type):**
+   - "expense" = مصروف → كلمات مثل: صرفت، دفعت، اشتريت، حسابي، فاتورة، إيجار، ثمن
+   - "income" = دخل → كلمات مثل: جالي، استلمت، راتب، قبضت، حولولي، كسبت، مرتب، دخل
+   - إذا الرسالة فيها مبلغ بدون فعل واضح، اعتبرها "expense"
 
-JSON format:
-{{
-    "type": "expense" | "income",
-    "amount": <number>,
-    "category": "<category>",
-    "description": "<short description or null>",
-    "date": "YYYY-MM-DD"
-}}
+2. **المبلغ (amount):** استخرج الرقم سواء بالأرقام العربية (٥٠) أو الإنجليزية (50)
+
+3. **الفئة (category):** اختر الأنسب من:
+   طعام، مواصلات، سوبرماركت، إيجار، فواتير، اشتراكات، ترفيه، صحة، تعليم، ملابس، هدايا، راتب، تحويل، مطعم، كافيه، بنزين، تأمين، أخرى
+
+4. **التاريخ (date):** إذا ما ذكرش تاريخ → استخدم اليوم. "امبارح/أمس" → أمس. "أول امبارح" → قبل يومين
+
+5. **الوصف (description):** وصف قصير بالعربي
+
+## أمثلة:
+- "صرفت ٥٠ سوبرماركت" → {{"type":"expense","amount":50,"category":"سوبرماركت","description":"مشتريات سوبرماركت","date":"{{today}}"}}
+- "جالي راتب ٢٠٠٠" → {{"type":"income","amount":2000,"category":"راتب","description":"راتب شهري","date":"{{today}}"}}
+- "٣٥٠ دفعة من الراتب" → {{"type":"income","amount":350,"category":"راتب","description":"دفعة من الراتب","date":"{{today}}"}}
+- "دفعت إيجار ٨٠٠" → {{"type":"expense","amount":800,"category":"إيجار","description":"إيجار","date":"{{today}}"}}
+- "100 بنزين" → {{"type":"expense","amount":100,"category":"بنزين","description":"بنزين","date":"{{today}}"}}
+- "حولولي 500" → {{"type":"income","amount":500,"category":"تحويل","description":"تحويل مالي","date":"{{today}}"}}
+
+## التنسيق:
+أرجع JSON فقط بدون أي شرح أو markdown:
+{{"type":"expense|income","amount":<رقم>,"category":"<فئة>","description":"<وصف>","date":"YYYY-MM-DD"}}
+
+إذا مش واضحة خالص: {{"error":"unclear","question":"<سؤال توضيحي بالعربي>"}}
 """
 
 
@@ -115,31 +122,40 @@ def parse_recurring(text: str) -> dict:
         text: e.g. "اشتراك نتفليكس ١٥ يورو كل شهر"
 
     Returns:
-        Dict with: name, amount, frequency, next_due_date.
+        Dict with: name, amount, frequency, next_due_date, category.
         OR error dict if unclear.
     """
     today = date.today().isoformat()
-    recurring_prompt = f"""You are a personal finance assistant. Parse the user's Arabic message
-into a recurring payment JSON.
+    recurring_prompt = f"""أنت مساعد مالي شخصي. حلل رسالة المستخدم العربية وحولها لـ JSON يمثل دفعة متكررة.
 
-Today's date is: {today}
+تاريخ اليوم: {today}
 
-Rules:
-1. Extract the payment name.
-2. Extract the amount as a number.
-3. Determine frequency: "daily", "weekly", "monthly", or "yearly".
-4. Determine or infer the next payment date. If not mentioned, assume it's the 1st of next month for monthly.
-5. Currency is EUR.
+## قواعد التحليل:
 
-Reply ONLY with valid JSON:
-{{
-    "name": "<payment name>",
-    "amount": <number>,
-    "frequency": "daily" | "weekly" | "monthly" | "yearly",
-    "next_due_date": "YYYY-MM-DD"
-}}
+1. **اسم الدفعة (name):** اسم الاشتراك أو الفاتورة أو الدفعة
+2. **المبلغ (amount):** استخرج الرقم (بالعربي أو الإنجليزي)
+3. **التكرار (frequency):** 
+   - "يومي/كل يوم" → "daily"
+   - "أسبوعي/كل أسبوع" → "weekly"  
+   - "شهري/كل شهر" → "monthly" (الافتراضي لو مش مذكور)
+   - "سنوي/كل سنة" → "yearly"
+4. **موعد الدفعة الجاية (next_due_date):** إذا مش مذكور:
+   - شهري → أول الشهر الجاي
+   - أسبوعي → بعد أسبوع من اليوم
+   - سنوي → بعد سنة من اليوم
+5. **الفئة (category):** اختر من: اشتراكات، إيجار، فواتير، تأمين، تعليم، صحة، مواصلات، أخرى
 
-If unclear, return: {{"error": "unclear", "question": "<clarifying question in Arabic>"}}
+## أمثلة:
+- "نتفليكس ١٥ كل شهر" → {{"name":"نتفليكس","amount":15,"frequency":"monthly","next_due_date":"أول الشهر الجاي","category":"اشتراكات"}}
+- "إيجار الشقة ٨٠٠ شهري يوم ١" → {{"name":"إيجار الشقة","amount":800,"frequency":"monthly","next_due_date":"أول الشهر الجاي","category":"إيجار"}}
+- "تأمين السيارة ٦٠٠ كل سنة" → {{"name":"تأمين السيارة","amount":600,"frequency":"yearly","next_due_date":"بعد سنة","category":"تأمين"}}
+- "فاتورة النت ٣٠ شهري" → {{"name":"فاتورة الإنترنت","amount":30,"frequency":"monthly","next_due_date":"أول الشهر الجاي","category":"فواتير"}}
+
+## التنسيق:
+أرجع JSON فقط بدون شرح أو markdown:
+{{"name":"<اسم>","amount":<رقم>,"frequency":"daily|weekly|monthly|yearly","next_due_date":"YYYY-MM-DD","category":"<فئة>"}}
+
+إذا مش واضحة: {{"error":"unclear","question":"<سؤال توضيحي بالعربي>"}}
 """
     try:
         response = _model.generate_content(
@@ -170,3 +186,4 @@ If unclear, return: {{"error": "unclear", "question": "<clarifying question in A
     except Exception as e:
         logger.error(f"Gemini API error (recurring): {e}")
         return {"error": "api_error", "question": "حصل مشكلة. حاول تاني."}
+
