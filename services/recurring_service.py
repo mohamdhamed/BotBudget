@@ -74,6 +74,62 @@ class RecurringService:
             logger.error(f"Validation error for recurring: {e}, parsed: {parsed}")
             return {"success": False, "question": "حصل مشكلة. حاول تاني بصيغة واضحة."}
 
+    def add_manual(self, user_id: int, name: str, amount: float,
+                   frequency: str, next_due_date: date) -> dict:
+        """
+        Add a recurring payment directly without AI parsing.
+
+        Args:
+            user_id: Telegram user ID.
+            name: Payment name.
+            amount: Payment amount.
+            frequency: One of 'daily', 'weekly', 'monthly', 'yearly'.
+            next_due_date: Next due date.
+
+        Returns:
+            Dict with 'success' and 'message' or 'error' and 'question'.
+        """
+        valid_freq = {"daily", "weekly", "monthly", "yearly",
+                      "يومي", "أسبوعي", "شهري", "سنوي"}
+        freq_map = {"يومي": "daily", "أسبوعي": "weekly",
+                    "شهري": "monthly", "سنوي": "yearly"}
+
+        # Convert Arabic frequency to English
+        frequency = freq_map.get(frequency, frequency)
+
+        if frequency not in {"daily", "weekly", "monthly", "yearly"}:
+            return {"success": False, "question":
+                    "⚠️ التكرار لازم يكون: يومي، أسبوعي، شهري، أو سنوي"}
+
+        try:
+            payment = RecurringPayment(
+                user_id=user_id,
+                name=name,
+                amount=amount,
+                frequency=frequency,
+                next_due_date=next_due_date,
+            )
+            saved = self.repo.add(payment)
+
+            freq_ar = {
+                "daily": "يومي", "weekly": "أسبوعي",
+                "monthly": "شهري", "yearly": "سنوي",
+            }
+
+            msg = (
+                f"🔁 تم إضافة دفعة متكررة:\n"
+                f"  📌 الاسم: {saved.name}\n"
+                f"  💶 المبلغ: {saved.amount:.2f}€\n"
+                f"  🔄 التكرار: {freq_ar.get(saved.frequency, saved.frequency)}\n"
+                f"  📅 الموعد القادم: {saved.next_due_date}\n"
+                f"  🔖 رقم: #{saved.id}"
+            )
+            return {"success": True, "message": msg}
+
+        except Exception as e:
+            logger.error(f"Error adding manual recurring: {e}")
+            return {"success": False, "question": "حصل مشكلة. حاول تاني."}
+
     def list_active(self, user_id: int) -> str:
         """
         Get a formatted list of all active recurring payments.
