@@ -1,0 +1,136 @@
+"""
+services/expense_service.py
+----------------------------
+Business logic for managing expenses and income.
+Orchestrates between the AI parser and the ExpenseRepository.
+"""
+
+from datetime import date, timedelta
+from typing import Optional
+
+from ai.gemini_parser import parse_transaction
+from models.expense import Expense
+from repositories.expense_repo import ExpenseRepository
+from utils.logger import get_logger
+
+logger = get_logger(__name__)
+
+
+class ExpenseService:
+    """
+    Handles all business logic related to financial transactions.
+
+    Workflow:
+        1. Receive raw text from the handler.
+        2. Send to Gemini for parsing.
+        3. Validate the parsed data.
+        4. Persist via the repository.
+        5. Return a user-friendly response.
+    """
+
+    def __init__(self):
+        self.repo = ExpenseRepository()
+
+    def add_from_text(self, user_id: int, text: str) -> dict:
+        """
+        Parse natural text and save as an expense or income.
+
+        Args:
+            user_id: Telegram user ID.
+            text: Raw message text in Arabic.
+
+        Returns:
+            Dict with 'success' and 'message' keys, or 'error' and 'question'.
+        """
+        parsed = parse_transaction(text)
+
+        # If AI couldn't parse, return the clarifying question
+        if "error" in parsed:
+            return {"success": False, "question": parsed.get("question", "حاول تاني.")}
+
+        try:
+            expense = Expense(
+                user_id=user_id,
+                type=parsed["type"],
+                amount=float(parsed["amount"]),
+                category=parsed.get("category", "أخرى"),
+                description=parsed.get("description"),
+                date=date.fromisoformat(parsed["date"]),
+                raw_text=text,
+            )
+            saved = self.repo.add(expense)
+
+            emoji = "💸" if saved.is_expense() else "💰"
+            msg = (
+                f"{emoji} تم تسجيل {saved.type}:\n"
+                f"  📂 الفئة: {saved.category}\n"
+                f"  💶 المبلغ: {saved.amount:.2f} {saved.currency}\n"
+                f"  📅 التاريخ: {saved.date}\n"
+            )
+            if saved.description:
+                msg += f"  📝 ملاحظة: {saved.description}\n"
+            msg += f"  🔖 رقم العملية: #{saved.id}"
+
+            return {"success": True, "message": msg}
+
+        except (KeyError, ValueError) as e:
+            logger.error(f"Validation error for parsed data: {e}, parsed: {parsed}")
+            return {"success": False, "question": "حصل مشكلة في البيانات. حاول تاني بصيغة مختلفة."}
+
+    def delete_expense(self, expense_id: int, user_id: int) -> str:
+        """
+        Delete an expense by ID.
+
+        Returns:
+            User-friendly message confirming deletion or error.
+        """
+        deleted = self.repo.delete(expense_id, user_id)
+        if deleted:
+            return f"🗑️ تم حذف العملية رقم #{expense_id} بنجاح."
+        return f"⚠️ العملية رقم #{expense_id} مش موجودة أو مش ليك."
+
+    def get_today_summary(self, user_id: int) -> str:
+        """Get a summary of today's transactions."""
+        today = date.today()
+        expenses = self.repo.get_by_date_range(user_id, today, today)
+        if not expenses:
+            return "📭 مفيش معاملات النهاردة."
+
+        total_exp = sum(e.amount for e in expenses if e.is_expense())
+        total_inc = sum(e.amount for e in expenses if e.is_income())
+
+        lines = [f"📊 ملخص النهاردة ({today}):\n"]
+        for e in expenses:
+            sign = "🔴" if e.is_expense() else "🟢"
+            lines.append(f"  {sign} {e.category}: {e.amount:.2f}€ {'- ' + e.description if e.description else ''}")
+
+        lines.append(f"\n💸 إجمالي المصاريف: {total_exp:.2f}€")
+        lines.append(f"💰 إجمالي الدخل: {total_inc:.2f}€")
+        lines.append(f"📈 الصافي: {total_inc - total_exp:.2f}€")
+        return "\n".join(lines)
+
+    def get_month_summary(self, user_id: int, year: Optional[int] = None, month: Optional[int] = None) -> str:
+        """Get a summary of a specific month's transactions."""
+        today = date.today()
+        y = year or today.year
+        m = month or today.month
+
+        totals = self.repo.get_monthly_total(user_id, y, m)
+        categories = self.repo.get_category_summary(
+            user_id,
+            date(y, m, 1),
+            date(y, m + 1, 1) - timedelta(days=1) if m < 12 else date(y, 12, 31),
+        )
+
+        lines = [f"📊 ملخص شهر {m}/{y}:\n"]
+        lines.append(f"💸 إجمالي المصاريف: {totals['total_expenses']:.2f}€")
+        lines.append(f"💰 إجمالي الدخل: {totals['total_income']:.2f}€")
+        lines.append(f"📈 الصافي: {totals['net']:.2f}€\n")
+
+        if categories:
+            lines.append("📂 توزيع المصاريف بالفئات:")
+            for cat in categories:
+                pct = (cat["total"] / totals["total_expenses"] * 100) if totals["total_expenses"] > 0 else 0
+                lines.append(f"  • {cat['category']}: {cat['total']:.2f}€ ({pct:.0f}%)")
+
+        return "\n".join(lines)

@@ -1,0 +1,8 @@
+python-telegram-bot[job-queue]==21.10
+google-generativeai>=0.8.0
+psycopg2-binary>=2.9.9
+python-dotenv>=1.0.0
+pandas>=2.2.0
+openpyxl>=3.1.0
+APScheduler>=3.10.0
+matplotlib>=3.8.0
