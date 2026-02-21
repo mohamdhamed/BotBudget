@@ -191,6 +191,47 @@ class ExpenseRepository:
         finally:
             release_connection(conn)
 
+    def search_by_text(self, user_id: int, query: str, limit: int = 20) -> list[Expense]:
+        """Search transactions by description or category (case-insensitive)."""
+        sql = """
+            SELECT * FROM expenses
+            WHERE user_id = %s AND (
+                description ILIKE %s OR category ILIKE %s
+            )
+            ORDER BY date DESC, id DESC
+            LIMIT %s;
+        """
+        pattern = f"%{query}%"
+        conn = get_connection()
+        try:
+            with conn.cursor() as cur:
+                cur.execute(sql, (user_id, pattern, pattern, limit))
+                return [self._row_to_expense(r) for r in cur.fetchall()]
+        finally:
+            release_connection(conn)
+
+    def get_overall_balance(self, user_id: int) -> dict:
+        """Get all-time income vs expenses."""
+        sql = """
+            SELECT type, SUM(amount) as total
+            FROM expenses WHERE user_id = %s
+            GROUP BY type;
+        """
+        conn = get_connection()
+        try:
+            with conn.cursor() as cur:
+                cur.execute(sql, (user_id,))
+                result = {"total_expenses": 0.0, "total_income": 0.0}
+                for row in cur.fetchall():
+                    if row[0] == "expense":
+                        result["total_expenses"] = float(row[1])
+                    elif row[0] == "income":
+                        result["total_income"] = float(row[1])
+                result["balance"] = result["total_income"] - result["total_expenses"]
+                return result
+        finally:
+            release_connection(conn)
+
     # ── UPDATE ────────────────────────────────────────────
 
     def update(self, expense: Expense) -> bool:

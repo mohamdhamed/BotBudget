@@ -32,6 +32,10 @@ from handlers.expense_handler import (
     delete_command,
     edit_command,
     category_command,
+    compare_command,
+    search_command,
+    report_command,
+    balance_command,
 )
 from handlers.recurring_handler import (
     recurring_command,
@@ -39,6 +43,8 @@ from handlers.recurring_handler import (
     delete_recurring_command,
 )
 from handlers.export_handler import export_csv_command, export_excel_command
+from handlers.chart_handler import chart_command, chart_week_command
+from handlers.budget_handler import budget_command
 from services.recurring_service import RecurringService
 from services.expense_service import ExpenseService
 from utils.logger import get_logger
@@ -112,6 +118,13 @@ async def set_bot_commands(application: Application) -> None:
         BotCommand("recurring", "🔁 المدفوعات المتكررة"),
         BotCommand("add_recurring", "➕ إضافة دفعة متكررة"),
         BotCommand("delete_recurring", "❌ حذف دفعة متكررة"),
+        BotCommand("budget", "💰 الميزانية الشهرية"),
+        BotCommand("compare", "🔄 مقارنة شهرية"),
+        BotCommand("search", "🔍 بحث"),
+        BotCommand("report", "📋 تقرير مخصص"),
+        BotCommand("balance", "🏦 الرصيد"),
+        BotCommand("chart", "📊 رسم بياني شهري"),
+        BotCommand("chart_week", "📈 رسم بياني أسبوعي"),
         BotCommand("export_csv", "📄 تصدير CSV"),
         BotCommand("export_excel", "📊 تصدير Excel"),
         BotCommand("myid", "🆔 رقم حسابك"),
@@ -147,6 +160,13 @@ def main() -> None:
     app.add_handler(CommandHandler("delete_recurring", delete_recurring_command))
     app.add_handler(CommandHandler("export_csv", export_csv_command))
     app.add_handler(CommandHandler("export_excel", export_excel_command))
+    app.add_handler(CommandHandler("chart", chart_command))
+    app.add_handler(CommandHandler("chart_week", chart_week_command))
+    app.add_handler(CommandHandler("budget", budget_command))
+    app.add_handler(CommandHandler("compare", compare_command))
+    app.add_handler(CommandHandler("search", search_command))
+    app.add_handler(CommandHandler("report", report_command))
+    app.add_handler(CommandHandler("balance", balance_command))
 
     # ── 4. Register text message handler (catch-all) ──────
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_text_message))

@@ -6,18 +6,21 @@ Delegates all logic to ExpenseService.
 """
 
 import re
+from datetime import date
 
 from telegram import Update
 from telegram.ext import ContextTypes
 
 from repositories.user_repo import UserRepository
 from services.expense_service import ExpenseService
+from services.budget_service import BudgetService
 from security.auth import authorized_only
 from security.rate_limiter import rate_limited
 from utils.logger import get_logger
 
 logger = get_logger(__name__)
 expense_service = ExpenseService()
+budget_service = BudgetService()
 user_repo = UserRepository()
 
 # Arabic digit conversion
@@ -44,10 +47,16 @@ async def handle_text_message(update: Update, context: ContextTypes.DEFAULT_TYPE
     result = expense_service.add_from_text(user.id, text)
 
     if result.get("success"):
-        await update.message.reply_text(result["message"])
+        reply = result["message"]
+        # Check budget alert
+        alert = budget_service.check_budget_alert(
+            user.id, result.get("category", ""), 0
+        )
+        if alert:
+            reply += f"\n\n{alert}"
+        await update.message.reply_text(reply)
     else:
         await update.message.reply_text(f"🤔 {result.get('question', 'حاول تاني.')}")
-
 
 @authorized_only
 @rate_limited
@@ -195,3 +204,100 @@ async def category_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -
     category = context.args[0]
     msg = expense_service.get_category_details(user.id, category)
     await update.message.reply_text(msg)
+
+
+@authorized_only
+@rate_limited
+async def compare_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """
+    Handle /compare command - compare two months.
+
+    Usage:
+        /compare           → current vs previous month
+        /compare 1 2       → January vs February
+        /compare 12 2025 1 2026 → Dec 2025 vs Jan 2026
+    """
+    user = update.effective_user
+    m1, y1, m2, y2 = None, None, None, None
+
+    args = context.args or []
+    try:
+        if len(args) >= 4:
+            m1, y1, m2, y2 = int(args[0]), int(args[1]), int(args[2]), int(args[3])
+        elif len(args) >= 2:
+            m1, m2 = int(args[0]), int(args[1])
+    except ValueError:
+        await update.message.reply_text("⚠️ الاستخدام: `/compare [شهر1] [شهر2]`", parse_mode="Markdown")
+        return
+
+    msg = expense_service.compare_months(user.id, m1, y1, m2, y2)
+    await update.message.reply_text(msg)
+
+
+@authorized_only
+@rate_limited
+async def search_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """
+    Handle /search command - search transactions.
+    Usage: /search نتفليكس
+    """
+    user = update.effective_user
+
+    if not context.args:
+        await update.message.reply_text(
+            "🔍 *بحث في المعاملات*\n\n"
+            "*الصيغة:* `/search <كلمة البحث>`\n\n"
+            "*أمثلة:*\n"
+            "• `/search طعام`\n"
+            "• `/search نتفليكس`\n"
+            "• `/search إيجار`",
+            parse_mode="Markdown",
+        )
+        return
+
+    query = " ".join(context.args)
+    msg = expense_service.search_transactions(user.id, query)
+    await update.message.reply_text(msg)
+
+
+@authorized_only
+@rate_limited
+async def report_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """
+    Handle /report command - report for a date range.
+
+    Usage:
+        /report 2026-01-01 2026-01-31
+        /report 2026-02-01 2026-02-21
+    """
+    user = update.effective_user
+
+    if not context.args or len(context.args) < 2:
+        await update.message.reply_text(
+            "📋 *تقرير مخصص*\n\n"
+            "*الصيغة:* `/report <من> <إلى>`\n\n"
+            "*مثال:*\n"
+            "`/report 2026-01-01 2026-01-31`",
+            parse_mode="Markdown",
+        )
+        return
+
+    try:
+        start = date.fromisoformat(context.args[0])
+        end = date.fromisoformat(context.args[1])
+    except ValueError:
+        await update.message.reply_text("⚠️ التاريخ لازم يكون بالصيغة: YYYY-MM-DD")
+        return
+
+    msg = expense_service.get_date_range_report(user.id, start, end)
+    await update.message.reply_text(msg)
+
+
+@authorized_only
+@rate_limited
+async def balance_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Handle /balance command - show overall balance."""
+    user = update.effective_user
+    msg = expense_service.get_balance(user.id)
+    await update.message.reply_text(msg, parse_mode="Markdown")
+
