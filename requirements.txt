@@ -6,4 +6,6 @@ pandas>=2.2.0
 openpyxl>=3.1.0
 APScheduler>=3.10.0
 matplotlib>=3.8.0
+arabic-reshaper>=3.0.0
+python-bidi>=0.4.2
 python-dateutil>=2.8.0

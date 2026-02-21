@@ -3,6 +3,7 @@ services/chart_service.py
 --------------------------
 Generates chart images for expense analysis.
 Uses matplotlib to create pie/bar charts and returns them as BytesIO buffers.
+Arabic text is reshaped using arabic_reshaper + bidi for correct rendering.
 """
 
 import io
@@ -12,6 +13,9 @@ import matplotlib
 matplotlib.use("Agg")  # Non-interactive backend for server use
 import matplotlib.pyplot as plt
 import matplotlib.font_manager as fm
+
+import arabic_reshaper
+from bidi.algorithm import get_display
 
 from repositories.expense_repo import ExpenseRepository
 from utils.logger import get_logger
@@ -33,6 +37,12 @@ if not _font_found:
 plt.rcParams["figure.facecolor"] = "#1a1a2e"
 plt.rcParams["text.color"] = "#e0e0e0"
 plt.rcParams["axes.facecolor"] = "#1a1a2e"
+
+
+def _ar(text: str) -> str:
+    """Reshape and reorder Arabic text for correct matplotlib rendering."""
+    reshaped = arabic_reshaper.reshape(text)
+    return get_display(reshaped)
 
 
 class ChartService:
@@ -90,8 +100,8 @@ class ChartService:
             autotext.set_fontsize(10)
             autotext.set_fontweight("bold")
 
-        # Legend
-        legend_labels = [f"{l}: {v:.2f}€" for l, v in zip(labels, values)]
+        # Legend with reshaped Arabic
+        legend_labels = [f"€{v:.2f} :{_ar(l)}" for l, v in zip(labels, values)]
         ax.legend(
             wedges, legend_labels,
             loc="center left",
@@ -101,7 +111,7 @@ class ChartService:
         )
 
         ax.set_title(
-            f"📊 توزيع المصاريف - {m}/{y}\nالإجمالي: {total:.2f}€",
+            _ar(f"توزيع المصاريف - {m}/{y}") + f"\n€{total:.2f} :" + _ar("الإجمالي"),
             fontsize=14,
             fontweight="bold",
             pad=20,
@@ -162,16 +172,16 @@ class ChartService:
             if amount > 0:
                 ax.text(
                     bar.get_x() + bar.get_width() / 2, bar.get_height() + 0.5,
-                    f"{amount:.0f}€",
+                    f"€{amount:.0f}",
                     ha="center", va="bottom",
                     color="#e0e0e0", fontsize=10, fontweight="bold",
                 )
 
         ax.set_xticks(range(len(days)))
         ax.set_xticklabels(day_labels, fontsize=9, color="#e0e0e0")
-        ax.set_ylabel("المبلغ (€)", fontsize=11, color="#e0e0e0")
+        ax.set_ylabel(_ar("المبلغ (€)"), fontsize=11, color="#e0e0e0")
         ax.set_title(
-            f"📈 المصاريف اليومية - آخر ٧ أيام\nالإجمالي: {sum(amounts):.2f}€",
+            _ar("المصاريف اليومية - آخر ٧ أيام") + f"\n€{sum(amounts):.2f} :" + _ar("الإجمالي"),
             fontsize=13, fontweight="bold", pad=15,
         )
 
