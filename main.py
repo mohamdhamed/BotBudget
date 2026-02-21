@@ -12,6 +12,7 @@ Responsibilities:
 import asyncio
 from datetime import time as dt_time
 
+from telegram import BotCommand
 from telegram.ext import (
     Application,
     CommandHandler,
@@ -72,6 +73,25 @@ async def send_reminders(context) -> None:
             logger.error(f"Failed to send reminder for '{payment.name}': {e}")
 
 
+async def set_bot_commands(application: Application) -> None:
+    """Register bot commands menu in Telegram on startup."""
+    commands = [
+        BotCommand("start", "🚀 بدء البوت"),
+        BotCommand("help", "📖 عرض المساعدة"),
+        BotCommand("today", "📅 ملخص النهاردة"),
+        BotCommand("month", "📊 ملخص الشهر"),
+        BotCommand("recurring", "🔁 المدفوعات المتكررة"),
+        BotCommand("add_recurring", "➕ إضافة دفعة متكررة"),
+        BotCommand("delete", "🗑️ حذف عملية"),
+        BotCommand("delete_recurring", "❌ حذف دفعة متكررة"),
+        BotCommand("export_csv", "📄 تصدير CSV"),
+        BotCommand("export_excel", "📊 تصدير Excel"),
+        BotCommand("myid", "🆔 رقم حسابك"),
+    ]
+    await application.bot.set_my_commands(commands)
+    logger.info("Bot commands menu registered successfully.")
+
+
 def main() -> None:
     """Initialize and run the bot."""
 
@@ -82,7 +102,7 @@ def main() -> None:
 
     # ── 2. Build the Telegram application ─────────────────
     logger.info("Starting Telegram bot...")
-    app = Application.builder().token(TELEGRAM_BOT_TOKEN).build()
+    app = Application.builder().token(TELEGRAM_BOT_TOKEN).post_init(set_bot_commands).build()
 
     # ── 3. Register command handlers ──────────────────────
     app.add_handler(CommandHandler("start", start_command))
@@ -112,7 +132,7 @@ def main() -> None:
 
     # ── 6. Start polling ──────────────────────────────────
     logger.info("🚀 BotBudget is running! Press Ctrl+C to stop.")
-    app.run_polling(drop_pending_updates=True)
+    app.run_polling(drop_pending_updates=True, allowed_updates=["message"])
 
     # ── 7. Cleanup on shutdown ────────────────────────────
     close_pool()
