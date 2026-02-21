@@ -10,7 +10,7 @@ Responsibilities:
 """
 
 import asyncio
-from datetime import time as dt_time
+from datetime import date, time as dt_time, timedelta
 
 from telegram import BotCommand
 from telegram.ext import (
@@ -28,7 +28,10 @@ from handlers.expense_handler import (
     handle_text_message,
     today_command,
     month_command,
+    week_command,
     delete_command,
+    edit_command,
+    category_command,
 )
 from handlers.recurring_handler import (
     recurring_command,
@@ -37,9 +40,31 @@ from handlers.recurring_handler import (
 )
 from handlers.export_handler import export_csv_command, export_excel_command
 from services.recurring_service import RecurringService
+from services.expense_service import ExpenseService
 from utils.logger import get_logger
 
 logger = get_logger(__name__)
+
+
+async def send_weekly_report(context) -> None:
+    """
+    Scheduled job: send weekly expense summary to all users.
+    Runs every Sunday at 20:00.
+    """
+    from config import ALLOWED_USER_IDS
+    expense_service = ExpenseService()
+
+    for user_id in ALLOWED_USER_IDS:
+        try:
+            summary = expense_service.get_week_summary(user_id)
+            await context.bot.send_message(
+                chat_id=user_id,
+                text=f"📬 *التقرير الأسبوعي*\n\n{summary}",
+                parse_mode="Markdown",
+            )
+            logger.info(f"Sent weekly report to user {user_id}")
+        except Exception as e:
+            logger.error(f"Failed to send weekly report to {user_id}: {e}")
 
 
 async def send_reminders(context) -> None:
@@ -79,10 +104,13 @@ async def set_bot_commands(application: Application) -> None:
         BotCommand("start", "🚀 بدء البوت"),
         BotCommand("help", "📖 عرض المساعدة"),
         BotCommand("today", "📅 ملخص النهاردة"),
+        BotCommand("week", "📆 ملخص آخر ٧ أيام"),
         BotCommand("month", "📊 ملخص الشهر"),
+        BotCommand("category", "🏷️ عرض حسب الفئة"),
+        BotCommand("edit", "✏️ تعديل معاملة"),
+        BotCommand("delete", "🗑️ حذف عملية"),
         BotCommand("recurring", "🔁 المدفوعات المتكررة"),
         BotCommand("add_recurring", "➕ إضافة دفعة متكررة"),
-        BotCommand("delete", "🗑️ حذف عملية"),
         BotCommand("delete_recurring", "❌ حذف دفعة متكررة"),
         BotCommand("export_csv", "📄 تصدير CSV"),
         BotCommand("export_excel", "📊 تصدير Excel"),
@@ -109,7 +137,10 @@ def main() -> None:
     app.add_handler(CommandHandler("help", help_command))
     app.add_handler(CommandHandler("myid", myid_command))
     app.add_handler(CommandHandler("today", today_command))
+    app.add_handler(CommandHandler("week", week_command))
     app.add_handler(CommandHandler("month", month_command))
+    app.add_handler(CommandHandler("category", category_command))
+    app.add_handler(CommandHandler("edit", edit_command))
     app.add_handler(CommandHandler("delete", delete_command))
     app.add_handler(CommandHandler("recurring", recurring_command))
     app.add_handler(CommandHandler("add_recurring", add_recurring_command))
@@ -120,7 +151,7 @@ def main() -> None:
     # ── 4. Register text message handler (catch-all) ──────
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_text_message))
 
-    # ── 5. Schedule daily reminders ───────────────────────
+    # ── 5. Schedule jobs ──────────────────────────────────
     job_queue = app.job_queue
     if job_queue:
         job_queue.run_daily(
@@ -128,7 +159,14 @@ def main() -> None:
             time=dt_time(hour=9, minute=0),
             name="daily_reminders",
         )
-        logger.info("Scheduled daily reminder job at 09:00 AM.")
+        # Weekly report every Sunday at 20:00
+        job_queue.run_daily(
+            send_weekly_report,
+            time=dt_time(hour=20, minute=0),
+            days=(6,),  # Sunday
+            name="weekly_report",
+        )
+        logger.info("Scheduled daily reminders (09:00) + weekly report (Sunday 20:00)")
 
     # ── 6. Start polling ──────────────────────────────────
     logger.info("🚀 BotBudget is running! Press Ctrl+C to stop.")

@@ -163,6 +163,34 @@ class ExpenseRepository:
         finally:
             release_connection(conn)
 
+    def get_by_category(
+        self, user_id: int, category: str, start: date, end: date
+    ) -> list[Expense]:
+        """
+        Fetch all transactions for a specific category within a date range.
+
+        Args:
+            user_id: Telegram user ID.
+            category: Category name (Arabic).
+            start: Start date (inclusive).
+            end: End date (inclusive).
+
+        Returns:
+            List of Expense objects filtered by category.
+        """
+        sql = """
+            SELECT * FROM expenses
+            WHERE user_id = %s AND category = %s AND date BETWEEN %s AND %s
+            ORDER BY date DESC, id DESC;
+        """
+        conn = get_connection()
+        try:
+            with conn.cursor() as cur:
+                cur.execute(sql, (user_id, category, start, end))
+                return [self._row_to_expense(r) for r in cur.fetchall()]
+        finally:
+            release_connection(conn)
+
     # ── UPDATE ────────────────────────────────────────────
 
     def update(self, expense: Expense) -> bool:
