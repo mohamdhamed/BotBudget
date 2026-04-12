@@ -23,14 +23,12 @@ logger = get_logger(__name__)
 # Configure the Gemini client once at module level
 genai.configure(api_key=GEMINI_API_KEY)
 
-_model = genai.GenerativeModel("gemini-2.5-flash")
-
 # ── System prompt for the AI ─────────────────────────────
 
-_SYSTEM_PROMPT = f"""أنت مساعد مالي شخصي ذكي. مهمتك الوحيدة هي تحويل رسالة المستخدم العربية
+_SYSTEM_PROMPT = """أنت مساعد مالي شخصي ذكي. مهمتك الوحيدة هي تحويل رسالة المستخدم العربية
 (عامية أو فصحى) إلى JSON يمثل معاملة مالية.
 
-تاريخ اليوم: {{today}}
+تاريخ اليوم: {today}
 
 ## قواعد التحليل:
 
@@ -49,19 +47,35 @@ _SYSTEM_PROMPT = f"""أنت مساعد مالي شخصي ذكي. مهمتك ال
 5. **الوصف (description):** وصف قصير بالعربي
 
 ## أمثلة:
-- "صرفت ٥٠ سوبرماركت" → {{"type":"expense","amount":50,"category":"سوبرماركت","description":"مشتريات سوبرماركت","date":"{{today}}"}}
-- "جالي راتب ٢٠٠٠" → {{"type":"income","amount":2000,"category":"راتب","description":"راتب شهري","date":"{{today}}"}}
-- "٣٥٠ دفعة من الراتب" → {{"type":"income","amount":350,"category":"راتب","description":"دفعة من الراتب","date":"{{today}}"}}
-- "دفعت إيجار ٨٠٠" → {{"type":"expense","amount":800,"category":"إيجار","description":"إيجار","date":"{{today}}"}}
-- "100 بنزين" → {{"type":"expense","amount":100,"category":"بنزين","description":"بنزين","date":"{{today}}"}}
-- "حولولي 500" → {{"type":"income","amount":500,"category":"تحويل","description":"تحويل مالي","date":"{{today}}"}}
+- "صرفت ٥٠ سوبرماركت" → {"type":"expense","amount":50,"category":"سوبرماركت","description":"مشتريات سوبرماركت","date":"{today}"}
+- "جالي راتب ٢٠٠٠" → {"type":"income","amount":2000,"category":"راتب","description":"راتب شهري","date":"{today}"}
+- "٣٥٠ دفعة من الراتب" → {"type":"income","amount":350,"category":"راتب","description":"دفعة من الراتب","date":"{today}"}
+- "دفعت إيجار ٨٠٠" → {"type":"expense","amount":800,"category":"إيجار","description":"إيجار","date":"{today}"}
+- "100 بنزين" → {"type":"expense","amount":100,"category":"بنزين","description":"بنزين","date":"{today}"}
+- "حولولي 500" → {"type":"income","amount":500,"category":"تحويل","description":"تحويل مالي","date":"{today}"}
 
 ## التنسيق:
 أرجع JSON فقط بدون أي شرح أو markdown:
-{{"type":"expense|income","amount":<رقم>,"category":"<فئة>","description":"<وصف>","date":"YYYY-MM-DD"}}
+{"type":"expense|income","amount":<رقم>,"category":"<فئة>","description":"<وصف>","date":"YYYY-MM-DD"}
 
-إذا مش واضحة خالص: {{"error":"unclear","question":"<سؤال توضيحي بالعربي>"}}
+إذا مش واضحة خالص: {"error":"unclear","question":"<سؤال توضيحي بالعربي>"}
 """
+
+
+def _clean_json_response(raw: str) -> str:
+    """Strip markdown code fences and extra whitespace from Gemini response."""
+    raw = raw.strip()
+    # Handle ```json or ``` at the start
+    if raw.startswith("```"):
+        first_line_end = raw.find("\n")
+        if first_line_end != -1:
+            raw = raw[first_line_end + 1:]
+        else:
+            raw = raw[3:]
+    # Handle ``` at the end
+    if raw.endswith("```"):
+        raw = raw[:-3]
+    return raw.strip()
 
 
 def parse_transaction(text: str) -> dict:
@@ -79,28 +93,23 @@ def parse_transaction(text: str) -> dict:
         ValueError: If the AI response cannot be parsed as JSON.
     """
     today = date.today().isoformat()
-    prompt = _SYSTEM_PROMPT.replace("{today}", today)
+    system_prompt = _SYSTEM_PROMPT.replace("{today}", today)
 
     try:
-        response = _model.generate_content(
-            [
-                {"role": "user", "parts": [{"text": prompt}]},
-                {"role": "user", "parts": [{"text": text}]},
-            ],
+        model = genai.GenerativeModel(
+            "gemini-2.5-flash",
+            system_instruction=system_prompt,
+        )
+        response = model.generate_content(
+            text,
             generation_config=genai.GenerationConfig(
                 temperature=0.1,
                 max_output_tokens=300,
             ),
         )
 
-        raw = response.text.strip()
-
-        # Clean markdown code fences if present
-        if raw.startswith("```"):
-            raw = raw.split("\n", 1)[1] if "\n" in raw else raw[3:]
-        if raw.endswith("```"):
-            raw = raw[:-3]
-        raw = raw.strip()
+        raw = _clean_json_response(response.text)
+        logger.info(f"Gemini raw response: {raw}")
 
         result = json.loads(raw)
         logger.info(f"Gemini parsed: {result}")
@@ -110,7 +119,7 @@ def parse_transaction(text: str) -> dict:
         logger.warning(f"Gemini returned non-JSON: {response.text}")
         return {"error": "parse_failed", "question": "لم أفهم الرسالة. ممكن تعيد صياغتها؟"}
     except Exception as e:
-        logger.error(f"Gemini API error: {e}")
+        logger.error(f"Gemini API error: {e}", exc_info=True)
         return {"error": "api_error", "question": "حصل مشكلة في التحليل. حاول تاني."}
 
 
@@ -158,23 +167,20 @@ def parse_recurring(text: str) -> dict:
 إذا مش واضحة: {{"error":"unclear","question":"<سؤال توضيحي بالعربي>"}}
 """
     try:
-        response = _model.generate_content(
-            [
-                {"role": "user", "parts": [{"text": recurring_prompt}]},
-                {"role": "user", "parts": [{"text": text}]},
-            ],
+        model = genai.GenerativeModel(
+            "gemini-2.5-flash",
+            system_instruction=recurring_prompt,
+        )
+        response = model.generate_content(
+            text,
             generation_config=genai.GenerationConfig(
                 temperature=0.1,
                 max_output_tokens=300,
             ),
         )
 
-        raw = response.text.strip()
-        if raw.startswith("```"):
-            raw = raw.split("\n", 1)[1] if "\n" in raw else raw[3:]
-        if raw.endswith("```"):
-            raw = raw[:-3]
-        raw = raw.strip()
+        raw = _clean_json_response(response.text)
+        logger.info(f"Gemini raw recurring response: {raw}")
 
         result = json.loads(raw)
         logger.info(f"Gemini parsed recurring: {result}")
@@ -184,6 +190,6 @@ def parse_recurring(text: str) -> dict:
         logger.warning(f"Gemini returned non-JSON for recurring: {response.text}")
         return {"error": "parse_failed", "question": "لم أفهم. ممكن تكتب اسم الاشتراك والمبلغ والتكرار؟"}
     except Exception as e:
-        logger.error(f"Gemini API error (recurring): {e}")
+        logger.error(f"Gemini API error (recurring): {e}", exc_info=True)
         return {"error": "api_error", "question": "حصل مشكلة. حاول تاني."}
 
