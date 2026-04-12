@@ -5,6 +5,45 @@ services:
     restart: unless-stopped
     env_file:
       - .env
-    network_mode: host
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - botbudget_net
     volumes:
       - ./exports:/app/exports
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: "0.5"
+
+  db:
+    image: postgres:16-alpine
+    container_name: botbudget_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${DB_NAME:-bot_budget}
+      POSTGRES_USER: ${DB_USER:-botbudget_user}
+      POSTGRES_PASSWORD: ${DB_PASS}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    networks:
+      - botbudget_net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-botbudget_user} -d ${DB_NAME:-bot_budget}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    # Don't expose DB port externally — only accessible within the network
+    # Uncomment below for local debugging only:
+    # ports:
+    #   - "5432:5432"
+
+networks:
+  botbudget_net:
+    driver: bridge
+
+volumes:
+  pgdata:
+

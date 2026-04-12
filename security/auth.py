@@ -37,9 +37,16 @@ def authorized_only(func: Callable):
         if not user:
             return
 
-        # If no whitelist configured, allow all (dev mode)
+        # If no whitelist configured, block all users (safety first)
         if not ALLOWED_USER_IDS:
-            return await func(update, context, *args, **kwargs)
+            logger.critical(
+                "⚠️ ALLOWED_USER_IDS is empty! Bot is locked. "
+                "Set ALLOWED_USER_IDS in .env to allow users."
+            )
+            await update.message.reply_text(
+                "⚠️ البوت مقفول. لازم تحدد المستخدمين المسموح لهم في إعدادات البوت."
+            )
+            return
 
         if user.id not in ALLOWED_USER_IDS:
             logger.warning(

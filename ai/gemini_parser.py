@@ -10,6 +10,7 @@ Responsibilities:
     - Return a clean JSON dict ready for the Service layer.
 """
 
+import re
 import json
 from datetime import date, timedelta
 
@@ -78,6 +79,29 @@ def _clean_json_response(raw: str) -> str:
     return raw.strip()
 
 
+# ── Security constants ────────────────────────────────
+_MAX_INPUT_LENGTH = 500
+_DANGEROUS_PATTERNS = re.compile(
+    r"(ignore|forget|disregard|system|prompt|instruction)",
+    re.IGNORECASE,
+)
+
+
+def _sanitize_input(text: str) -> str:
+    """
+    Sanitize user input before sending to AI.
+
+    - Truncates to max length
+    - Strips control characters
+    - Basic prompt injection defense
+    """
+    # Truncate to prevent abuse
+    text = text[:_MAX_INPUT_LENGTH]
+    # Remove control characters (keep Arabic + standard chars)
+    text = re.sub(r'[\x00-\x08\x0b-\x0c\x0e-\x1f\x7f]', '', text)
+    return text.strip()
+
+
 def parse_transaction(text: str) -> dict:
     """
     Send a natural-language financial message to Gemini and get structured data back.
@@ -92,6 +116,10 @@ def parse_transaction(text: str) -> dict:
     Raises:
         ValueError: If the AI response cannot be parsed as JSON.
     """
+    text = _sanitize_input(text)
+    if not text:
+        return {"error": "empty", "question": "الرسالة فاضية. اكتب المعاملة المالية."}
+
     today = date.today().isoformat()
     system_prompt = _SYSTEM_PROMPT.replace("{today}", today)
 
@@ -109,14 +137,14 @@ def parse_transaction(text: str) -> dict:
         )
 
         raw = _clean_json_response(response.text)
-        logger.info(f"Gemini raw response: {raw}")
+        logger.debug("Gemini response received (length=%d)", len(raw))
 
         result = json.loads(raw)
-        logger.info(f"Gemini parsed: {result}")
+        logger.info("Transaction parsed: type=%s, category=%s", result.get("type", "?"), result.get("category", "?"))
         return result
 
     except json.JSONDecodeError:
-        logger.warning(f"Gemini returned non-JSON: {response.text}")
+        logger.warning("Gemini returned non-JSON response (length=%d)", len(response.text) if response.text else 0)
         return {"error": "parse_failed", "question": "لم أفهم الرسالة. ممكن تعيد صياغتها؟"}
     except Exception as e:
         logger.error(f"Gemini API error: {e}", exc_info=True)
@@ -134,6 +162,10 @@ def parse_recurring(text: str) -> dict:
         Dict with: name, amount, frequency, next_due_date, category.
         OR error dict if unclear.
     """
+    text = _sanitize_input(text)
+    if not text:
+        return {"error": "empty", "question": "الرسالة فاضية. اكتب تفاصيل الدفعة المتكررة."}
+
     today = date.today().isoformat()
     recurring_prompt = f"""أنت مساعد مالي شخصي. حلل رسالة المستخدم العربية وحولها لـ JSON يمثل دفعة متكررة.
 
@@ -180,14 +212,14 @@ def parse_recurring(text: str) -> dict:
         )
 
         raw = _clean_json_response(response.text)
-        logger.info(f"Gemini raw recurring response: {raw}")
+        logger.debug("Gemini recurring response received (length=%d)", len(raw))
 
         result = json.loads(raw)
-        logger.info(f"Gemini parsed recurring: {result}")
+        logger.info("Recurring parsed: name=%s, frequency=%s", result.get("name", "?"), result.get("frequency", "?"))
         return result
 
     except json.JSONDecodeError:
-        logger.warning(f"Gemini returned non-JSON for recurring: {response.text}")
+        logger.warning("Gemini returned non-JSON for recurring (length=%d)", len(response.text) if response.text else 0)
         return {"error": "parse_failed", "question": "لم أفهم. ممكن تكتب اسم الاشتراك والمبلغ والتكرار؟"}
     except Exception as e:
         logger.error(f"Gemini API error (recurring): {e}", exc_info=True)

@@ -9,7 +9,6 @@ Responsibilities:
     - Set up the recurring payment reminder scheduler.
 """
 
-import asyncio
 from datetime import date, time as dt_time, timedelta
 
 from telegram import BotCommand
@@ -96,7 +95,7 @@ async def send_reminders(context) -> None:
                 parse_mode="Markdown",
             )
             # Advance the due date for next cycle
-            if payment.next_due_date <= asyncio.get_event_loop().time():
+            if payment.next_due_date <= date.today():
                 recurring_service.advance_due_date(payment)
 
             logger.info(f"Sent reminder for '{payment.name}' to user {payment.user_id}")

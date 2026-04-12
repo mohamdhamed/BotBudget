@@ -50,12 +50,20 @@ def rate_limited(func: Callable):
 
         _cleanup(user.id)
 
-        if len(_user_timestamps[user.id]) >= RATE_LIMIT_MESSAGES:
+        current_count = len(_user_timestamps[user.id])
+        
+        if current_count >= RATE_LIMIT_MESSAGES:
             logger.warning(f"⚠️ Rate limit hit for user {user.id}")
             await update.message.reply_text(
-                "⚠️ أنت بتبعت رسائل كتير. استنى شوية وحاول تاني."
+                "⚠️ أنت بتبعت رسائل كتير جداً. تم الحظر مؤقتاً لمدة دقيقة. استنى شوية."
             )
             return
+            
+        if current_count == int(RATE_LIMIT_MESSAGES * 0.8):
+            logger.info(f"User {user.id} approaching rate limit ({current_count}/{RATE_LIMIT_MESSAGES})")
+            await update.message.reply_text(
+                "⚠️ رسالة تحذير: أنت اقتربت من الحد الأقصى للرسائل المسموحة في الدقيقة. يرجى الانتظار قليلاً."
+            )
 
         _user_timestamps[user.id].append(time.time())
         return await func(update, context, *args, **kwargs)
