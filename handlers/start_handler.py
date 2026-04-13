@@ -65,12 +65,11 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
     await update.message.reply_text(HELP_TEXT, parse_mode="Markdown")
 
 
-@authorized_only
 async def myid_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Handle /myid command - show user's Telegram ID for whitelisting."""
+    """Handle /myid command - open to all users so they can get their ID for whitelisting."""
     user = update.effective_user
     await update.message.reply_text(
-        f"🆔 رقم حسابك: `{user.id}`\n"
-        f"ضيف الرقم ده في `ALLOWED_USER_IDS` في ملف `.env` لتأمين البوت.",
+        f"🆔 رقم حسابك على تيليجرام:\n\n`{user.id}`\n\n"
+        f"شارك الرقم ده مع مشرف البوت عشان يضيفك.",
         parse_mode="Markdown",
     )

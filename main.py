@@ -111,36 +111,55 @@ async def send_reminders(context) -> None:
 
 
 async def set_bot_commands(application: Application) -> None:
-    """Register bot commands menu in Telegram on startup."""
-    commands = [
+    """Register bot commands — regular users see normal commands, admins see extra ones."""
+    from config import ADMIN_USER_IDS
+    from telegram import BotCommandScopeChat
+
+    user_commands = [
         BotCommand("start", "🚀 بدء البوت"),
         BotCommand("help", "📖 عرض المساعدة"),
+        BotCommand("myid", "🆔 رقم حسابك"),
         BotCommand("today", "📅 ملخص النهاردة"),
         BotCommand("week", "📆 ملخص آخر ٧ أيام"),
         BotCommand("month", "📊 ملخص الشهر"),
+        BotCommand("balance", "🏦 الرصيد"),
+        BotCommand("last", "🕓 آخر ٥ معاملات"),
+        BotCommand("undo", "↩️ إلغاء آخر معاملة"),
         BotCommand("category", "🏷️ عرض حسب الفئة"),
         BotCommand("edit", "✏️ تعديل معاملة"),
         BotCommand("delete", "🗑️ حذف عملية"),
+        BotCommand("budget", "💰 الميزانية الشهرية"),
         BotCommand("recurring", "🔁 المدفوعات المتكررة"),
         BotCommand("add_recurring", "➕ إضافة دفعة متكررة"),
         BotCommand("delete_recurring", "❌ حذف دفعة متكررة"),
-        BotCommand("budget", "💰 الميزانية الشهرية"),
         BotCommand("compare", "🔄 مقارنة شهرية"),
         BotCommand("search", "🔍 بحث"),
         BotCommand("report", "📋 تقرير مخصص"),
-        BotCommand("balance", "🏦 الرصيد"),
         BotCommand("chart", "📊 رسم بياني شهري"),
         BotCommand("chart_week", "📈 رسم بياني أسبوعي"),
         BotCommand("export_csv", "📄 تصدير CSV"),
         BotCommand("export_excel", "📊 تصدير Excel"),
-        BotCommand("myid", "🆔 رقم حسابك"),
-        BotCommand("last", "🕓 آخر ٥ معاملات"),
-        BotCommand("undo", "↩️ إلغاء آخر معاملة"),
-        BotCommand("adduser", "➕ إضافة مستخدم (admin)"),
-        BotCommand("removeuser", "➖ حذف مستخدم (admin)"),
-        BotCommand("users", "👥 قائمة المستخدمين (admin)"),
     ]
-    await application.bot.set_my_commands(commands)
+
+    admin_commands = user_commands + [
+        BotCommand("adduser", "➕ إضافة مستخدم"),
+        BotCommand("removeuser", "➖ حذف مستخدم"),
+        BotCommand("users", "👥 قائمة المستخدمين"),
+    ]
+
+    # Set default commands for all users
+    await application.bot.set_my_commands(user_commands)
+
+    # Set admin-specific commands for each admin chat
+    for admin_id in ADMIN_USER_IDS:
+        try:
+            await application.bot.set_my_commands(
+                admin_commands,
+                scope=BotCommandScopeChat(chat_id=admin_id),
+            )
+        except Exception as e:
+            logger.warning(f"Could not set admin commands for {admin_id}: {e}")
+
     logger.info("Bot commands menu registered successfully.")
 
 
