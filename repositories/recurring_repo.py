@@ -8,7 +8,7 @@ All SQL queries related to the `recurring_payments` table live here.
 from datetime import date, timedelta
 from typing import Optional
 
-from db.connection import get_connection, release_connection
+from db.connection import get_pool
 from models.recurring import RecurringPayment
 from utils.logger import get_logger
 
@@ -20,7 +20,7 @@ class RecurringRepository:
 
     # ── CREATE ────────────────────────────────────────────
 
-    def add(self, payment: RecurringPayment) -> RecurringPayment:
+    async def add(self, payment: RecurringPayment) -> RecurringPayment:
         """
         Insert a new recurring payment.
 
@@ -36,30 +36,28 @@ class RecurringRepository:
             VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
             RETURNING id, created_at;
         """
-        conn = get_connection()
+        pool = get_pool()
         try:
-            with conn.cursor() as cur:
-                cur.execute(sql, (
-                    payment.user_id, payment.name, payment.amount,
-                    payment.currency, payment.frequency, payment.next_due_date,
-                    payment.remind_days_before, payment.active,
-                ))
-                row = cur.fetchone()
-                payment.id = row[0]
-                payment.created_at = row[1]
-            conn.commit()
+            async with pool.connection() as conn:
+                async with conn.cursor() as cur:
+                    await cur.execute(sql, (
+                        payment.user_id, payment.name, payment.amount,
+                        payment.currency, payment.frequency, payment.next_due_date,
+                        payment.remind_days_before, payment.active,
+                    ))
+                    row = await cur.fetchone()
+                    payment.id = row[0]
+                    payment.created_at = row[1]
+                await conn.commit()
             logger.info(f"Added recurring payment '{payment.name}' #{payment.id}")
             return payment
         except Exception as e:
-            conn.rollback()
             logger.error(f"Failed to add recurring payment: {e}")
             raise
-        finally:
-            release_connection(conn)
 
     # ── READ ──────────────────────────────────────────────
 
-    def get_all(self, user_id: int, active_only: bool = True) -> list[RecurringPayment]:
+    async def get_all(self, user_id: int, active_only: bool = True) -> list[RecurringPayment]:
         """
         Get all recurring payments for a user.
 
@@ -76,15 +74,14 @@ class RecurringRepository:
             sql += " AND active = TRUE"
         sql += " ORDER BY next_due_date ASC;"
 
-        conn = get_connection()
-        try:
-            with conn.cursor() as cur:
-                cur.execute(sql, params)
-                return [self._row_to_payment(r) for r in cur.fetchall()]
-        finally:
-            release_connection(conn)
+        pool = get_pool()
+        async with pool.connection() as conn:
+            async with conn.cursor() as cur:
+                await cur.execute(sql, params)
+                rows = await cur.fetchall()
+                return [self._row_to_payment(r) for r in rows]
 
-    def get_due_soon(self, days_ahead: int = 2) -> list[RecurringPayment]:
+    async def get_due_soon(self, days_ahead: int = 2) -> list[RecurringPayment]:
         """
         Get all active recurring payments due within the next N days.
         Used by the scheduler to send reminders.
@@ -101,29 +98,26 @@ class RecurringRepository:
             WHERE active = TRUE AND next_due_date <= %s
             ORDER BY next_due_date ASC;
         """
-        conn = get_connection()
-        try:
-            with conn.cursor() as cur:
-                cur.execute(sql, (target_date,))
-                return [self._row_to_payment(r) for r in cur.fetchall()]
-        finally:
-            release_connection(conn)
+        pool = get_pool()
+        async with pool.connection() as conn:
+            async with conn.cursor() as cur:
+                await cur.execute(sql, (target_date,))
+                rows = await cur.fetchall()
+                return [self._row_to_payment(r) for r in rows]
 
-    def get_by_id(self, payment_id: int, user_id: int) -> Optional[RecurringPayment]:
+    async def get_by_id(self, payment_id: int, user_id: int) -> Optional[RecurringPayment]:
         """Fetch a single recurring payment by ID, scoped to user."""
         sql = "SELECT * FROM recurring_payments WHERE id = %s AND user_id = %s;"
-        conn = get_connection()
-        try:
-            with conn.cursor() as cur:
-                cur.execute(sql, (payment_id, user_id))
-                row = cur.fetchone()
+        pool = get_pool()
+        async with pool.connection() as conn:
+            async with conn.cursor() as cur:
+                await cur.execute(sql, (payment_id, user_id))
+                row = await cur.fetchone()
                 return self._row_to_payment(row) if row else None
-        finally:
-            release_connection(conn)
 
     # ── UPDATE ────────────────────────────────────────────
 
-    def advance_due_date(self, payment: RecurringPayment) -> None:
+    async def advance_due_date(self, payment: RecurringPayment) -> None:
         """
         Advance the next_due_date based on the payment's frequency.
         Called after a reminder has been sent.
@@ -141,56 +135,50 @@ class RecurringRepository:
             payment.frequency, timedelta(days=30)
         )
         sql = "UPDATE recurring_payments SET next_due_date = %s WHERE id = %s;"
-        conn = get_connection()
+        pool = get_pool()
         try:
-            with conn.cursor() as cur:
-                cur.execute(sql, (new_date, payment.id))
-            conn.commit()
+            async with pool.connection() as conn:
+                async with conn.cursor() as cur:
+                    await cur.execute(sql, (new_date, payment.id))
+                await conn.commit()
             logger.info(f"Advanced '{payment.name}' next due date to {new_date}")
         except Exception as e:
-            conn.rollback()
             logger.error(f"Failed to advance due date: {e}")
             raise
-        finally:
-            release_connection(conn)
 
-    def toggle_active(self, payment_id: int, user_id: int, active: bool) -> bool:
+    async def toggle_active(self, payment_id: int, user_id: int, active: bool) -> bool:
         """Enable or disable a recurring payment."""
         sql = "UPDATE recurring_payments SET active = %s WHERE id = %s AND user_id = %s;"
-        conn = get_connection()
+        pool = get_pool()
         try:
-            with conn.cursor() as cur:
-                cur.execute(sql, (active, payment_id, user_id))
-                updated = cur.rowcount > 0
-            conn.commit()
-            return updated
+            async with pool.connection() as conn:
+                async with conn.cursor() as cur:
+                    await cur.execute(sql, (active, payment_id, user_id))
+                    updated = cur.rowcount > 0
+                await conn.commit()
+                return updated
         except Exception as e:
-            conn.rollback()
             logger.error(f"Failed to toggle recurring #{payment_id}: {e}")
             raise
-        finally:
-            release_connection(conn)
 
     # ── DELETE ────────────────────────────────────────────
 
-    def delete(self, payment_id: int, user_id: int) -> bool:
+    async def delete(self, payment_id: int, user_id: int) -> bool:
         """Delete a recurring payment by ID, scoped to user."""
         sql = "DELETE FROM recurring_payments WHERE id = %s AND user_id = %s;"
-        conn = get_connection()
+        pool = get_pool()
         try:
-            with conn.cursor() as cur:
-                cur.execute(sql, (payment_id, user_id))
-                deleted = cur.rowcount > 0
-            conn.commit()
-            if deleted:
-                logger.info(f"Deleted recurring payment #{payment_id}")
-            return deleted
+            async with pool.connection() as conn:
+                async with conn.cursor() as cur:
+                    await cur.execute(sql, (payment_id, user_id))
+                    deleted = cur.rowcount > 0
+                await conn.commit()
+                if deleted:
+                    logger.info(f"Deleted recurring payment #{payment_id}")
+                return deleted
         except Exception as e:
-            conn.rollback()
             logger.error(f"Failed to delete recurring #{payment_id}: {e}")
             raise
-        finally:
-            release_connection(conn)
 
     # ── HELPERS ───────────────────────────────────────────
 

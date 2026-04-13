@@ -37,7 +37,7 @@ async def budget_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 
     if not context.args:
         # Show budget status
-        msg = budget_service.get_budget_status(user.id)
+        msg = await budget_service.get_budget_status(user.id)
         await update.message.reply_text(msg, parse_mode="Markdown")
         return
 
@@ -63,7 +63,7 @@ async def budget_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             await update.message.reply_text("⚠️ المبلغ لازم يكون رقم.")
             return
 
-        msg = budget_service.set_budget(user.id, category, amount)
+        msg = await budget_service.set_budget(user.id, category, amount)
         await update.message.reply_text(msg)
 
     elif action == "delete":
@@ -72,7 +72,7 @@ async def budget_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             return
 
         category = context.args[1]
-        msg = budget_service.delete_budget(user.id, category)
+        msg = await budget_service.delete_budget(user.id, category)
         await update.message.reply_text(msg)
 
     else:

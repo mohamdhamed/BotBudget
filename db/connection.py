@@ -1,72 +1,63 @@
 """
 db/connection.py
 ----------------
-Manages the PostgreSQL connection pool.
-Uses psycopg2's SimpleConnectionPool for efficient connection reuse.
+Manages the PostgreSQL async connection pool.
+Uses psycopg AsyncConnectionPool for async connection reuse.
 """
 
-import psycopg2
-from psycopg2 import pool, extras
+import sys
+from psycopg_pool import AsyncConnectionPool
+import psycopg
 from config import DATABASE_URL
 from utils.logger import get_logger
 
 logger = get_logger(__name__)
 
-_pool: pool.SimpleConnectionPool | None = None
+_pool: AsyncConnectionPool | None = None
 
 
-def init_pool(min_conn: int = 1, max_conn: int = 5) -> None:
+async def init_pool(min_conn: int = 1, max_conn: int = 5) -> None:
     """
-    Initialize the database connection pool.
+    Initialize the database async connection pool.
 
     Args:
         min_conn: Minimum number of connections to keep open.
         max_conn: Maximum number of connections allowed.
-
-    Raises:
-        psycopg2.OperationalError: If the database is unreachable.
     """
     global _pool
     if _pool is not None:
         return
     try:
-        _pool = pool.SimpleConnectionPool(min_conn, max_conn, DATABASE_URL)
-        logger.info("Database connection pool initialized successfully.")
-    except psycopg2.OperationalError as e:
+        _pool = AsyncConnectionPool(
+            conninfo=DATABASE_URL,
+            min_size=min_conn,
+            max_size=max_conn,
+            open=False  # We will open it explicitly
+        )
+        await _pool.open()
+        await _pool.wait()
+        logger.info("Database async connection pool initialized successfully.")
+    except Exception as e:
         logger.error(f"Failed to initialize database pool: {e}")
         raise
 
 
-def get_connection():
+def get_pool() -> AsyncConnectionPool:
     """
-    Get a connection from the pool.
+    Get the async connection pool.
 
     Returns:
-        A psycopg2 connection object.
-
-    Raises:
-        RuntimeError: If the pool has not been initialized.
+        The AsyncConnectionPool instance.
     """
     if _pool is None:
-        raise RuntimeError("Database pool not initialized. Call init_pool() first.")
-    return _pool.getconn()
+        raise RuntimeError("Database pool not initialized. Call await init_pool() first.")
+    return _pool
 
 
-def release_connection(conn) -> None:
-    """
-    Return a connection back to the pool.
-
-    Args:
-        conn: The psycopg2 connection to release.
-    """
-    if _pool is not None:
-        _pool.putconn(conn)
-
-
-def close_pool() -> None:
+async def close_pool() -> None:
     """Close all connections in the pool."""
     global _pool
     if _pool is not None:
-        _pool.closeall()
+        await _pool.close()
         _pool = None
-        logger.info("Database connection pool closed.")
+        logger.info("Database async connection pool closed.")

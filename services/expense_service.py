@@ -31,7 +31,7 @@ class ExpenseService:
     def __init__(self):
         self.repo = ExpenseRepository()
 
-    def add_from_text(self, user_id: int, text: str) -> dict:
+    async def add_from_text(self, user_id: int, text: str) -> dict:
         """
         Parse natural text and save as an expense or income.
 
@@ -58,7 +58,7 @@ class ExpenseService:
                 date=date.fromisoformat(parsed["date"]),
                 raw_text=text,
             )
-            saved = self.repo.add(expense)
+            saved = await self.repo.add(expense)
 
             emoji = "💸" if saved.is_expense() else "💰"
             msg = (
@@ -77,22 +77,22 @@ class ExpenseService:
             logger.error(f"Validation error for parsed data: {e}, parsed: {parsed}")
             return {"success": False, "question": "حصل مشكلة في البيانات. حاول تاني بصيغة مختلفة."}
 
-    def delete_expense(self, expense_id: int, user_id: int) -> str:
+    async def delete_expense(self, expense_id: int, user_id: int) -> str:
         """
         Delete an expense by ID.
 
         Returns:
             User-friendly message confirming deletion or error.
         """
-        deleted = self.repo.delete(expense_id, user_id)
+        deleted = await self.repo.delete(expense_id, user_id)
         if deleted:
             return f"🗑️ تم حذف العملية رقم #{expense_id} بنجاح."
         return f"⚠️ العملية رقم #{expense_id} مش موجودة أو مش ليك."
 
-    def get_today_summary(self, user_id: int) -> str:
+    async def get_today_summary(self, user_id: int) -> str:
         """Get a summary of today's transactions."""
         today = date.today()
-        expenses = self.repo.get_by_date_range(user_id, today, today)
+        expenses = await self.repo.get_by_date_range(user_id, today, today)
         if not expenses:
             return "📭 مفيش معاملات النهاردة."
 
@@ -109,14 +109,14 @@ class ExpenseService:
         lines.append(f"📈 الصافي: {total_inc - total_exp:.2f}€")
         return "\n".join(lines)
 
-    def get_month_summary(self, user_id: int, year: Optional[int] = None, month: Optional[int] = None) -> str:
+    async def get_month_summary(self, user_id: int, year: Optional[int] = None, month: Optional[int] = None) -> str:
         """Get a summary of a specific month's transactions."""
         today = date.today()
         y = year or today.year
         m = month or today.month
 
-        totals = self.repo.get_monthly_total(user_id, y, m)
-        categories = self.repo.get_category_summary(
+        totals = await self.repo.get_monthly_total(user_id, y, m)
+        categories = await self.repo.get_category_summary(
             user_id,
             date(y, m, 1),
             date(y, m + 1, 1) - timedelta(days=1) if m < 12 else date(y, 12, 31),
@@ -135,7 +135,7 @@ class ExpenseService:
 
         return "\n".join(lines)
 
-    def edit_expense(self, expense_id: int, user_id: int,
+    async def edit_expense(self, expense_id: int, user_id: int,
                      amount: float = None, category: str = None,
                      description: str = None) -> str:
         """
@@ -151,7 +151,7 @@ class ExpenseService:
         Returns:
             User-friendly confirmation or error message.
         """
-        expense = self.repo.get_by_id(expense_id, user_id)
+        expense = await self.repo.get_by_id(expense_id, user_id)
         if not expense:
             return f"⚠️ العملية رقم #{expense_id} مش موجودة أو مش ليك."
 
@@ -169,13 +169,13 @@ class ExpenseService:
         if not changes:
             return "⚠️ مفيش تعديلات. حدد على الأقل حاجة واحدة للتعديل."
 
-        updated = self.repo.update(expense)
+        updated = await self.repo.update(expense)
         if updated:
             msg = f"✏️ تم تعديل العملية #{expense_id}:\n" + "\n".join(f"  {c}" for c in changes)
             return msg
         return f"⚠️ فشل تعديل العملية #{expense_id}."
 
-    def get_category_details(self, user_id: int, category: str,
+    async def get_category_details(self, user_id: int, category: str,
                              year: int = None, month: int = None) -> str:
         """
         Get all transactions for a specific category in a month.
@@ -196,7 +196,7 @@ class ExpenseService:
         start = date(y, m, 1)
         end = date(y, m + 1, 1) - timedelta(days=1) if m < 12 else date(y, 12, 31)
 
-        expenses = self.repo.get_by_category(user_id, category, start, end)
+        expenses = await self.repo.get_by_category(user_id, category, start, end)
         if not expenses:
             return f"📭 مفيش معاملات في فئة \"{category}\" لشهر {m}/{y}."
 
@@ -210,12 +210,12 @@ class ExpenseService:
         lines.append(f"\n💶 الإجمالي: {total:.2f}€ ({len(expenses)} معاملة)")
         return "\n".join(lines)
 
-    def get_week_summary(self, user_id: int) -> str:
+    async def get_week_summary(self, user_id: int) -> str:
         """Get a summary of the last 7 days."""
         today = date.today()
         week_start = today - timedelta(days=6)
 
-        expenses = self.repo.get_by_date_range(user_id, week_start, today)
+        expenses = await self.repo.get_by_date_range(user_id, week_start, today)
         if not expenses:
             return "📭 مفيش معاملات في آخر ٧ أيام."
 
@@ -241,7 +241,7 @@ class ExpenseService:
 
         return "\n".join(lines)
 
-    def compare_months(self, user_id: int, month1: int = None, year1: int = None,
+    async def compare_months(self, user_id: int, month1: int = None, year1: int = None,
                        month2: int = None, year2: int = None) -> str:
         """Compare two months' expenses side by side."""
         today = date.today()
@@ -256,16 +256,16 @@ class ExpenseService:
         else:
             m1, y1 = month1, year1 or today.year
 
-        t1 = self.repo.get_monthly_total(user_id, y1, m1)
-        t2 = self.repo.get_monthly_total(user_id, y2, m2)
+        t1 = await self.repo.get_monthly_total(user_id, y1, m1)
+        t2 = await self.repo.get_monthly_total(user_id, y2, m2)
 
         s1 = date(y1, m1, 1)
         e1 = date(y1, m1 + 1, 1) - timedelta(days=1) if m1 < 12 else date(y1, 12, 31)
         s2 = date(y2, m2, 1)
         e2 = date(y2, m2 + 1, 1) - timedelta(days=1) if m2 < 12 else date(y2, 12, 31)
 
-        cats1 = {c["category"]: c["total"] for c in self.repo.get_category_summary(user_id, s1, e1)}
-        cats2 = {c["category"]: c["total"] for c in self.repo.get_category_summary(user_id, s2, e2)}
+        cats1 = {c["category"]: c["total"] for c in await self.repo.get_category_summary(user_id, s1, e1)}
+        cats2 = {c["category"]: c["total"] for c in await self.repo.get_category_summary(user_id, s2, e2)}
         all_cats = sorted(set(list(cats1.keys()) + list(cats2.keys())))
 
         lines = [f"📊 مقارنة {m1}/{y1} ↔ {m2}/{y2}:\n"]
@@ -291,9 +291,9 @@ class ExpenseService:
 
         return "\n".join(lines)
 
-    def search_transactions(self, user_id: int, query: str) -> str:
+    async def search_transactions(self, user_id: int, query: str) -> str:
         """Search transactions by text."""
-        results = self.repo.search_by_text(user_id, query)
+        results = await self.repo.search_by_text(user_id, query)
         if not results:
             return f"📭 مفيش نتائج للبحث عن \"{query}\"."
 
@@ -307,9 +307,9 @@ class ExpenseService:
         lines.append(f"\n💶 الإجمالي: {total:.2f}€")
         return "\n".join(lines)
 
-    def get_date_range_report(self, user_id: int, start: date, end: date) -> str:
+    async def get_date_range_report(self, user_id: int, start: date, end: date) -> str:
         """Get a detailed report for a specific date range."""
-        expenses = self.repo.get_by_date_range(user_id, start, end)
+        expenses = await self.repo.get_by_date_range(user_id, start, end)
         if not expenses:
             return f"📭 مفيش معاملات في الفترة {start} → {end}."
 
@@ -339,12 +339,12 @@ class ExpenseService:
         lines.append(f"\n📊 عدد المعاملات: {len(expenses)}")
         return "\n".join(lines)
 
-    def get_balance(self, user_id: int) -> str:
+    async def get_balance(self, user_id: int) -> str:
         """Get overall balance (all-time)."""
-        result = self.repo.get_overall_balance(user_id)
+        result = await self.repo.get_overall_balance(user_id)
 
         today = date.today()
-        month_totals = self.repo.get_monthly_total(user_id, today.year, today.month)
+        month_totals = await self.repo.get_monthly_total(user_id, today.year, today.month)
 
         lines = ["🏦 *رصيد الحساب*\n"]
         lines.append(f"💰 إجمالي الدخل: {result['total_income']:.2f}€")

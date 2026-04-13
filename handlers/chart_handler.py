@@ -42,7 +42,7 @@ async def chart_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
 
     await update.message.reply_text("📊 جاري إنشاء الرسم البياني...")
 
-    buf = chart_service.generate_monthly_pie(user.id, year, month)
+    buf = await chart_service.generate_monthly_pie(user.id, year, month)
     if buf:
         await update.message.reply_photo(photo=buf, caption="📊 توزيع المصاريف حسب الفئة")
     else:
@@ -57,7 +57,7 @@ async def chart_week_command(update: Update, context: ContextTypes.DEFAULT_TYPE)
 
     await update.message.reply_text("📈 جاري إنشاء الرسم البياني...")
 
-    buf = chart_service.generate_weekly_bar(user.id)
+    buf = await chart_service.generate_weekly_bar(user.id)
     if buf:
         await update.message.reply_photo(photo=buf, caption="📈 المصاريف اليومية - آخر ٧ أيام")
     else:

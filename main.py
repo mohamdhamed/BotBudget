@@ -61,7 +61,7 @@ async def send_weekly_report(context) -> None:
 
     for user_id in ALLOWED_USER_IDS:
         try:
-            summary = expense_service.get_week_summary(user_id)
+            summary = await expense_service.get_week_summary(user_id)
             await context.bot.send_message(
                 chat_id=user_id,
                 text=f"📬 *التقرير الأسبوعي*\n\n{summary}",
@@ -78,7 +78,7 @@ async def send_reminders(context) -> None:
     Runs daily at 09:00 AM.
     """
     recurring_service = RecurringService()
-    due_payments = recurring_service.get_due_reminders()
+    due_payments = await recurring_service.get_due_reminders()
 
     for payment in due_payments:
         try:
@@ -96,7 +96,7 @@ async def send_reminders(context) -> None:
             )
             # Advance the due date for next cycle
             if payment.next_due_date <= date.today():
-                recurring_service.advance_due_date(payment)
+                await recurring_service.advance_due_date(payment)
 
             logger.info(f"Sent reminder for '{payment.name}' to user {payment.user_id}")
         except Exception as e:
@@ -132,17 +132,20 @@ async def set_bot_commands(application: Application) -> None:
     logger.info("Bot commands menu registered successfully.")
 
 
+async def post_init(application: Application) -> None:
+    """Initialize database and set bot commands on startup."""
+    logger.info("Initializing database...")
+    await init_pool()
+    await create_tables()
+    await set_bot_commands(application)
+
+
 def main() -> None:
     """Initialize and run the bot."""
 
-    # ── 1. Database setup ─────────────────────────────────
-    logger.info("Initializing database...")
-    init_pool()
-    create_tables()
-
-    # ── 2. Build the Telegram application ─────────────────
+    # ── 1. Build the Telegram application ─────────────────
     logger.info("Starting Telegram bot...")
-    app = Application.builder().token(TELEGRAM_BOT_TOKEN).post_init(set_bot_commands).build()
+    app = Application.builder().token(TELEGRAM_BOT_TOKEN).post_init(post_init).build()
 
     # ── 3. Register command handlers ──────────────────────
     app.add_handler(CommandHandler("start", start_command))
@@ -192,7 +195,8 @@ def main() -> None:
     app.run_polling(drop_pending_updates=True, allowed_updates=["message"])
 
     # ── 7. Cleanup on shutdown ────────────────────────────
-    close_pool()
+    import asyncio
+    asyncio.get_event_loop().run_until_complete(close_pool())
     logger.info("BotBudget stopped.")
 
 

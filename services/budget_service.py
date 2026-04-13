@@ -20,24 +20,24 @@ class BudgetService:
         self.budget_repo = BudgetRepository()
         self.expense_repo = ExpenseRepository()
 
-    def set_budget(self, user_id: int, category: str, amount: float) -> str:
+    async def set_budget(self, user_id: int, category: str, amount: float) -> str:
         """Set a monthly budget limit for a category (or 'إجمالي' for overall)."""
-        self.budget_repo.set_budget(user_id, category, amount)
+        await self.budget_repo.set_budget(user_id, category, amount)
         return (
             f"✅ تم تحديد ميزانية \"{category}\":\n"
             f"  💰 الحد: {amount:.2f}€ شهرياً"
         )
 
-    def delete_budget(self, user_id: int, category: str) -> str:
+    async def delete_budget(self, user_id: int, category: str) -> str:
         """Delete a budget limit."""
-        deleted = self.budget_repo.delete_budget(user_id, category)
+        deleted = await self.budget_repo.delete_budget(user_id, category)
         if deleted:
             return f"🗑️ تم حذف ميزانية \"{category}\"."
         return f"⚠️ مفيش ميزانية محددة لفئة \"{category}\"."
 
-    def get_budget_status(self, user_id: int) -> str:
+    async def get_budget_status(self, user_id: int) -> str:
         """Get current spending vs budget for all categories."""
-        budgets = self.budget_repo.get_all_budgets(user_id)
+        budgets = await self.budget_repo.get_all_budgets(user_id)
         if not budgets:
             return (
                 "📭 مفيش ميزانية محددة.\n\n"
@@ -50,11 +50,11 @@ class BudgetService:
         end = date(today.year, today.month + 1, 1) - timedelta(days=1) if today.month < 12 else date(today.year, 12, 31)
 
         # Get category spending
-        cat_summary = self.expense_repo.get_category_summary(user_id, start, end)
+        cat_summary = await self.expense_repo.get_category_summary(user_id, start, end)
         spending_map = {c["category"]: c["total"] for c in cat_summary}
 
         # Overall spending
-        totals = self.expense_repo.get_monthly_total(user_id, today.year, today.month)
+        totals = await self.expense_repo.get_monthly_total(user_id, today.year, today.month)
         total_spent = totals["total_expenses"]
 
         lines = [f"💰 *حالة الميزانية - {today.month}/{today.year}*\n"]
@@ -92,7 +92,7 @@ class BudgetService:
 
         return "\n\n".join(lines)
 
-    def check_budget_alert(self, user_id: int, category: str, new_amount: float) -> str | None:
+    async def check_budget_alert(self, user_id: int, category: str, new_amount: float) -> str | None:
         """
         Check if adding a new expense would trigger a budget alert.
         Called after each expense is added.
@@ -101,7 +101,7 @@ class BudgetService:
             Alert message string or None if no alert needed.
         """
         # Check specific category budget
-        budget = self.budget_repo.get_budget(user_id, category)
+        budget = await self.budget_repo.get_budget(user_id, category)
         alerts = []
 
         today = date.today()
@@ -109,7 +109,7 @@ class BudgetService:
         end = date(today.year, today.month + 1, 1) - timedelta(days=1) if today.month < 12 else date(today.year, 12, 31)
 
         if budget:
-            cat_summary = self.expense_repo.get_category_summary(user_id, start, end)
+            cat_summary = await self.expense_repo.get_category_summary(user_id, start, end)
             cat_spent = sum(c["total"] for c in cat_summary if c["category"] == category)
             pct = (cat_spent / budget["limit_amount"] * 100) if budget["limit_amount"] > 0 else 0
             
@@ -119,9 +119,9 @@ class BudgetService:
                 alerts.append(f"🟡 وصلت {pct:.0f}% من ميزانية \"{category}\"!")
 
         # Check overall budget
-        overall = self.budget_repo.get_budget(user_id, "إجمالي")
+        overall = await self.budget_repo.get_budget(user_id, "إجمالي")
         if overall:
-            totals = self.expense_repo.get_monthly_total(user_id, today.year, today.month)
+            totals = await self.expense_repo.get_monthly_total(user_id, today.year, today.month)
             total_pct = (totals["total_expenses"] / overall["limit_amount"] * 100) if overall["limit_amount"] > 0 else 0
 
             if total_pct >= 100:

@@ -43,7 +43,7 @@ async def export_csv_command(update: Update, context: ContextTypes.DEFAULT_TYPE)
     await update.message.reply_text("📄 جاري تجهيز ملف CSV...")
 
     try:
-        buffer = export_service.export_month_csv(user.id, year, month)
+        buffer = await export_service.export_month_csv(user.id, year, month)
         filename = f"expenses_{year}_{month:02d}.csv"
         await update.message.reply_document(
             document=buffer,
@@ -79,7 +79,7 @@ async def export_excel_command(update: Update, context: ContextTypes.DEFAULT_TYP
     await update.message.reply_text("📊 جاري تجهيز ملف Excel...")
 
     try:
-        buffer = export_service.export_month_excel(user.id, year, month)
+        buffer = await export_service.export_month_excel(user.id, year, month)
         filename = f"expenses_{year}_{month:02d}.xlsx"
         await update.message.reply_document(
             document=buffer,

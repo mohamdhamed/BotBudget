@@ -27,7 +27,7 @@ class RecurringService:
     def __init__(self):
         self.repo = RecurringRepository()
 
-    def add_from_text(self, user_id: int, text: str) -> dict:
+    async def add_from_text(self, user_id: int, text: str) -> dict:
         """
         Parse natural text and save as a recurring payment.
 
@@ -51,7 +51,7 @@ class RecurringService:
                 frequency=parsed["frequency"],
                 next_due_date=date.fromisoformat(parsed["next_due_date"]),
             )
-            saved = self.repo.add(payment)
+            saved = await self.repo.add(payment)
 
             freq_ar = {
                 "daily": "يومي",
@@ -74,7 +74,7 @@ class RecurringService:
             logger.error(f"Validation error for recurring: {e}, parsed: {parsed}")
             return {"success": False, "question": "حصل مشكلة. حاول تاني بصيغة واضحة."}
 
-    def add_manual(self, user_id: int, name: str, amount: float,
+    async def add_manual(self, user_id: int, name: str, amount: float,
                    frequency: str, next_due_date: date) -> dict:
         """
         Add a recurring payment directly without AI parsing.
@@ -109,7 +109,7 @@ class RecurringService:
                 frequency=frequency,
                 next_due_date=next_due_date,
             )
-            saved = self.repo.add(payment)
+            saved = await self.repo.add(payment)
 
             freq_ar = {
                 "daily": "يومي", "weekly": "أسبوعي",
@@ -130,14 +130,14 @@ class RecurringService:
             logger.error(f"Error adding manual recurring: {e}")
             return {"success": False, "question": "حصل مشكلة. حاول تاني."}
 
-    def list_active(self, user_id: int) -> str:
+    async def list_active(self, user_id: int) -> str:
         """
         Get a formatted list of all active recurring payments.
 
         Returns:
             Formatted string or "no payments" message.
         """
-        payments = self.repo.get_all(user_id, active_only=True)
+        payments = await self.repo.get_all(user_id, active_only=True)
         if not payments:
             return "📭 مفيش مدفوعات متكررة مسجلة."
 
@@ -158,22 +158,22 @@ class RecurringService:
             lines.append(f"\n💶 إجمالي الالتزامات الشهرية: {total:.2f}€")
         return "\n".join(lines)
 
-    def delete_payment(self, payment_id: int, user_id: int) -> str:
+    async def delete_payment(self, payment_id: int, user_id: int) -> str:
         """Delete a recurring payment by ID."""
-        deleted = self.repo.delete(payment_id, user_id)
+        deleted = await self.repo.delete(payment_id, user_id)
         if deleted:
             return f"🗑️ تم حذف الدفعة المتكررة #{payment_id}."
         return f"⚠️ الدفعة #{payment_id} مش موجودة."
 
-    def toggle_payment(self, payment_id: int, user_id: int, active: bool) -> str:
+    async def toggle_payment(self, payment_id: int, user_id: int, active: bool) -> str:
         """Enable or disable a recurring payment."""
-        updated = self.repo.toggle_active(payment_id, user_id, active)
+        updated = await self.repo.toggle_active(payment_id, user_id, active)
         if updated:
             status = "تفعيل ✅" if active else "إيقاف ❌"
             return f"تم {status} الدفعة #{payment_id}."
         return f"⚠️ الدفعة #{payment_id} مش موجودة."
 
-    def get_due_reminders(self) -> list[RecurringPayment]:
+    async def get_due_reminders(self) -> list[RecurringPayment]:
         """
         Get all payments that need reminders sent.
         Called by the scheduler.
@@ -181,8 +181,8 @@ class RecurringService:
         Returns:
             List of RecurringPayment objects due within remind_days_before.
         """
-        return self.repo.get_due_soon(days_ahead=2)
+        return await self.repo.get_due_soon(days_ahead=2)
 
-    def advance_due_date(self, payment: RecurringPayment) -> None:
+    async def advance_due_date(self, payment: RecurringPayment) -> None:
         """Advance a payment's next due date after processing."""
-        self.repo.advance_due_date(payment)
+        await self.repo.advance_due_date(payment)

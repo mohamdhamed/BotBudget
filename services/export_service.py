@@ -21,7 +21,7 @@ class ExportService:
     def __init__(self):
         self.repo = ExpenseRepository()
 
-    def export_month_csv(self, user_id: int, year: int, month: int) -> io.BytesIO:
+    async def export_month_csv(self, user_id: int, year: int, month: int) -> io.BytesIO:
         """
         Export a month's transactions as a CSV file.
 
@@ -35,7 +35,7 @@ class ExportService:
         """
         start = date(year, month, 1)
         end = date(year, month + 1, 1) - timedelta(days=1) if month < 12 else date(year, 12, 31)
-        expenses = self.repo.get_by_date_range(user_id, start, end)
+        expenses = await self.repo.get_by_date_range(user_id, start, end)
 
         data = [
             {
@@ -56,7 +56,7 @@ class ExportService:
         logger.info(f"Exported {len(data)} records as CSV for user {user_id}")
         return buffer
 
-    def export_month_excel(self, user_id: int, year: int, month: int) -> io.BytesIO:
+    async def export_month_excel(self, user_id: int, year: int, month: int) -> io.BytesIO:
         """
         Export a month's transactions as an Excel (.xlsx) file.
 
@@ -70,7 +70,7 @@ class ExportService:
         """
         start = date(year, month, 1)
         end = date(year, month + 1, 1) - timedelta(days=1) if month < 12 else date(year, 12, 31)
-        expenses = self.repo.get_by_date_range(user_id, start, end)
+        expenses = await self.repo.get_by_date_range(user_id, start, end)
 
         data = [
             {

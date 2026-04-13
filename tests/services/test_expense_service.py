@@ -1,5 +1,5 @@
 import pytest
-from unittest.mock import MagicMock, patch
+from unittest.mock import AsyncMock, patch, MagicMock
 
 from services.expense_service import ExpenseService
 from models.expense import Expense
@@ -7,7 +7,8 @@ from models.expense import Expense
 
 @pytest.fixture
 def mock_repo():
-    return MagicMock()
+    repo = AsyncMock()
+    return repo
 
 
 @pytest.fixture
@@ -17,8 +18,9 @@ def expense_service(mock_repo):
     return service
 
 
+@pytest.mark.asyncio
 @patch('services.expense_service.parse_transaction')
-def test_add_from_text_success(mock_parse, expense_service, mock_repo):
+async def test_add_from_text_success(mock_parse, expense_service, mock_repo):
     # Mock the AI parser output
     mock_parse.return_value = {
         "type": "expense",
@@ -33,12 +35,12 @@ def test_add_from_text_success(mock_parse, expense_service, mock_repo):
     mock_repo.add.return_value = saved_mock
 
     # Execute service method
-    result = expense_service.add_from_text(user_id=1, text="دفعنا 100 غداء")
+    result = await expense_service.add_from_text(user_id=1, text="دفعنا 100 غداء")
 
     # Assert correct response
     assert result["success"] is True
     assert "Food" in result["message"]
-    assert "100.0" in result["message"]
+    assert "100.00" in result["message"]
 
     # Assert repo was called correctly
     mock_repo.add.assert_called_once()
@@ -49,22 +51,24 @@ def test_add_from_text_success(mock_parse, expense_service, mock_repo):
     assert saved_param.category == "Food"
 
 
+@pytest.mark.asyncio
 @patch('services.expense_service.parse_transaction')
-def test_add_from_text_parse_error(mock_parse, expense_service, mock_repo):
+async def test_add_from_text_parse_error(mock_parse, expense_service, mock_repo):
     # Mock AI returning an error (e.g. unclear message)
     mock_parse.return_value = {
         "error": "parse_failed",
         "question": "لم أفهم الرسالة"
     }
 
-    result = expense_service.add_from_text(user_id=1, text="مش مفهوم")
+    result = await expense_service.add_from_text(user_id=1, text="مش مفهوم")
 
     assert result["success"] is False
     assert "لم أفهم الرسالة" in result["question"]
     mock_repo.add.assert_not_called()
 
 
-def test_get_week_summary(expense_service, mock_repo):
+@pytest.mark.asyncio
+async def test_get_week_summary(expense_service, mock_repo):
     # Setup mock data return
     mock_repo.get_by_date_range.return_value = [
         Expense(user_id=1, type="expense", amount=50.0, category="Food"),
@@ -72,7 +76,7 @@ def test_get_week_summary(expense_service, mock_repo):
         Expense(user_id=1, type="income", amount=500.0, category="Salary")
     ]
 
-    result = expense_service.get_week_summary(user_id=1)
+    result = await expense_service.get_week_summary(user_id=1)
 
     assert "إجمالي المصاريف: 70.00€" in result
     assert "إجمالي الدخل: 500.00€" in result

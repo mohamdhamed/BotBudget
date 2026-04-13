@@ -6,7 +6,7 @@ Run this module directly to initialize a fresh database:
     python -m db.init_db
 """
 
-from db.connection import get_connection, release_connection
+from db.connection import get_pool
 from utils.logger import get_logger
 
 logger = get_logger(__name__)
@@ -66,27 +66,30 @@ CREATE INDEX IF NOT EXISTS idx_recurring_due ON recurring_payments(next_due_date
 """
 
 
-def create_tables() -> None:
+async def create_tables() -> None:
     """
     Execute the schema SQL to create all tables.
     Safe to call multiple times (uses IF NOT EXISTS).
     """
-    conn = get_connection()
+    pool = get_pool()
     try:
-        with conn.cursor() as cur:
-            cur.execute(SCHEMA_SQL)
-        conn.commit()
+        async with pool.connection() as conn:
+            async with conn.cursor() as cur:
+                await cur.execute(SCHEMA_SQL)
+            await conn.commit()
         logger.info("Database schema initialized successfully.")
     except Exception as e:
-        conn.rollback()
         logger.error(f"Failed to initialize schema: {e}")
         raise
-    finally:
-        release_connection(conn)
 
 
 if __name__ == "__main__":
+    import asyncio
     from db.connection import init_pool
-    init_pool()
-    create_tables()
-    print("✅ Database schema created successfully.")
+
+    async def main():
+        await init_pool()
+        await create_tables()
+        print("✅ Database schema created successfully.")
+
+    asyncio.run(main())

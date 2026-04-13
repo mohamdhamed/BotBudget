@@ -46,7 +46,7 @@ HELP_TEXT = """
 async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Handle /start command - register user and show welcome message."""
     user = update.effective_user
-    user_repo.ensure_user(user.id, user.first_name)
+    await user_repo.ensure_user(user.id, user.first_name)
     logger.info(f"User {user.id} ({user.first_name}) started the bot.")
 
     await update.message.reply_text(

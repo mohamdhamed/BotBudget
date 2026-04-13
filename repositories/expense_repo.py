@@ -8,7 +8,7 @@ All SQL queries related to the `expenses` table live here.
 from datetime import date
 from typing import Optional
 
-from db.connection import get_connection, release_connection
+from db.connection import get_pool
 from models.expense import Expense
 from utils.logger import get_logger
 
@@ -20,7 +20,7 @@ class ExpenseRepository:
 
     # ── CREATE ────────────────────────────────────────────
 
-    def add(self, expense: Expense) -> Expense:
+    async def add(self, expense: Expense) -> Expense:
         """
         Insert a new expense/income record.
 
@@ -35,30 +35,28 @@ class ExpenseRepository:
             VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
             RETURNING id, created_at;
         """
-        conn = get_connection()
+        pool = get_pool()
         try:
-            with conn.cursor() as cur:
-                cur.execute(sql, (
-                    expense.user_id, expense.type, expense.amount,
-                    expense.currency, expense.category, expense.description,
-                    expense.date, expense.raw_text,
-                ))
-                row = cur.fetchone()
-                expense.id = row[0]
-                expense.created_at = row[1]
-            conn.commit()
+            async with pool.connection() as conn:
+                async with conn.cursor() as cur:
+                    await cur.execute(sql, (
+                        expense.user_id, expense.type, expense.amount,
+                        expense.currency, expense.category, expense.description,
+                        expense.date, expense.raw_text,
+                    ))
+                    row = await cur.fetchone()
+                    expense.id = row[0]
+                    expense.created_at = row[1]
+                await conn.commit()
             logger.info(f"Added {expense.type} #{expense.id} for user {expense.user_id}")
             return expense
         except Exception as e:
-            conn.rollback()
             logger.error(f"Failed to add expense: {e}")
             raise
-        finally:
-            release_connection(conn)
 
     # ── READ ──────────────────────────────────────────────
 
-    def get_by_id(self, expense_id: int, user_id: int) -> Optional[Expense]:
+    async def get_by_id(self, expense_id: int, user_id: int) -> Optional[Expense]:
         """
         Fetch a single expense by ID, scoped to a user.
 
@@ -70,16 +68,14 @@ class ExpenseRepository:
             An Expense object or None if not found.
         """
         sql = "SELECT * FROM expenses WHERE id = %s AND user_id = %s;"
-        conn = get_connection()
-        try:
-            with conn.cursor() as cur:
-                cur.execute(sql, (expense_id, user_id))
-                row = cur.fetchone()
+        pool = get_pool()
+        async with pool.connection() as conn:
+            async with conn.cursor() as cur:
+                await cur.execute(sql, (expense_id, user_id))
+                row = await cur.fetchone()
                 return self._row_to_expense(row) if row else None
-        finally:
-            release_connection(conn)
 
-    def get_by_date_range(
+    async def get_by_date_range(
         self, user_id: int, start: date, end: date, tx_type: Optional[str] = None
     ) -> list[Expense]:
         """
@@ -101,15 +97,14 @@ class ExpenseRepository:
             params.append(tx_type)
         sql += " ORDER BY date DESC, id DESC;"
 
-        conn = get_connection()
-        try:
-            with conn.cursor() as cur:
-                cur.execute(sql, params)
-                return [self._row_to_expense(r) for r in cur.fetchall()]
-        finally:
-            release_connection(conn)
+        pool = get_pool()
+        async with pool.connection() as conn:
+            async with conn.cursor() as cur:
+                await cur.execute(sql, params)
+                rows = await cur.fetchall()
+                return [self._row_to_expense(r) for r in rows]
 
-    def get_category_summary(
+    async def get_category_summary(
         self, user_id: int, start: date, end: date
     ) -> list[dict]:
         """
@@ -125,15 +120,14 @@ class ExpenseRepository:
             GROUP BY category
             ORDER BY total DESC;
         """
-        conn = get_connection()
-        try:
-            with conn.cursor() as cur:
-                cur.execute(sql, (user_id, start, end))
-                return [{"category": r[0], "total": float(r[1])} for r in cur.fetchall()]
-        finally:
-            release_connection(conn)
+        pool = get_pool()
+        async with pool.connection() as conn:
+            async with conn.cursor() as cur:
+                await cur.execute(sql, (user_id, start, end))
+                rows = await cur.fetchall()
+                return [{"category": r[0], "total": float(r[1])} for r in rows]
 
-    def get_monthly_total(self, user_id: int, year: int, month: int) -> dict:
+    async def get_monthly_total(self, user_id: int, year: int, month: int) -> dict:
         """
         Get total income and expenses for a specific month.
 
@@ -148,22 +142,21 @@ class ExpenseRepository:
               AND EXTRACT(MONTH FROM date) = %s
             GROUP BY type;
         """
-        conn = get_connection()
-        try:
-            with conn.cursor() as cur:
-                cur.execute(sql, (user_id, year, month))
+        pool = get_pool()
+        async with pool.connection() as conn:
+            async with conn.cursor() as cur:
+                await cur.execute(sql, (user_id, year, month))
                 result = {"total_expenses": 0.0, "total_income": 0.0, "net": 0.0}
-                for row in cur.fetchall():
+                rows = await cur.fetchall()
+                for row in rows:
                     if row[0] == "expense":
                         result["total_expenses"] = float(row[1])
                     elif row[0] == "income":
                         result["total_income"] = float(row[1])
                 result["net"] = result["total_income"] - result["total_expenses"]
                 return result
-        finally:
-            release_connection(conn)
 
-    def get_by_category(
+    async def get_by_category(
         self, user_id: int, category: str, start: date, end: date
     ) -> list[Expense]:
         """
@@ -183,15 +176,14 @@ class ExpenseRepository:
             WHERE user_id = %s AND category = %s AND date BETWEEN %s AND %s
             ORDER BY date DESC, id DESC;
         """
-        conn = get_connection()
-        try:
-            with conn.cursor() as cur:
-                cur.execute(sql, (user_id, category, start, end))
-                return [self._row_to_expense(r) for r in cur.fetchall()]
-        finally:
-            release_connection(conn)
+        pool = get_pool()
+        async with pool.connection() as conn:
+            async with conn.cursor() as cur:
+                await cur.execute(sql, (user_id, category, start, end))
+                rows = await cur.fetchall()
+                return [self._row_to_expense(r) for r in rows]
 
-    def search_by_text(self, user_id: int, query: str, limit: int = 20) -> list[Expense]:
+    async def search_by_text(self, user_id: int, query: str, limit: int = 20) -> list[Expense]:
         """Search transactions by description or category (case-insensitive)."""
         sql = """
             SELECT * FROM expenses
@@ -202,39 +194,37 @@ class ExpenseRepository:
             LIMIT %s;
         """
         pattern = f"%{query}%"
-        conn = get_connection()
-        try:
-            with conn.cursor() as cur:
-                cur.execute(sql, (user_id, pattern, pattern, limit))
-                return [self._row_to_expense(r) for r in cur.fetchall()]
-        finally:
-            release_connection(conn)
+        pool = get_pool()
+        async with pool.connection() as conn:
+            async with conn.cursor() as cur:
+                await cur.execute(sql, (user_id, pattern, pattern, limit))
+                rows = await cur.fetchall()
+                return [self._row_to_expense(r) for r in rows]
 
-    def get_overall_balance(self, user_id: int) -> dict:
+    async def get_overall_balance(self, user_id: int) -> dict:
         """Get all-time income vs expenses."""
         sql = """
             SELECT type, SUM(amount) as total
             FROM expenses WHERE user_id = %s
             GROUP BY type;
         """
-        conn = get_connection()
-        try:
-            with conn.cursor() as cur:
-                cur.execute(sql, (user_id,))
+        pool = get_pool()
+        async with pool.connection() as conn:
+            async with conn.cursor() as cur:
+                await cur.execute(sql, (user_id,))
                 result = {"total_expenses": 0.0, "total_income": 0.0}
-                for row in cur.fetchall():
+                rows = await cur.fetchall()
+                for row in rows:
                     if row[0] == "expense":
                         result["total_expenses"] = float(row[1])
                     elif row[0] == "income":
                         result["total_income"] = float(row[1])
                 result["balance"] = result["total_income"] - result["total_expenses"]
                 return result
-        finally:
-            release_connection(conn)
 
     # ── UPDATE ────────────────────────────────────────────
 
-    def update(self, expense: Expense) -> bool:
+    async def update(self, expense: Expense) -> bool:
         """
         Update an existing expense record.
 
@@ -249,26 +239,24 @@ class ExpenseRepository:
             SET amount = %s, category = %s, description = %s, date = %s, type = %s
             WHERE id = %s AND user_id = %s;
         """
-        conn = get_connection()
+        pool = get_pool()
         try:
-            with conn.cursor() as cur:
-                cur.execute(sql, (
-                    expense.amount, expense.category, expense.description,
-                    expense.date, expense.type, expense.id, expense.user_id,
-                ))
-                updated = cur.rowcount > 0
-            conn.commit()
-            return updated
+            async with pool.connection() as conn:
+                async with conn.cursor() as cur:
+                    await cur.execute(sql, (
+                        expense.amount, expense.category, expense.description,
+                        expense.date, expense.type, expense.id, expense.user_id,
+                    ))
+                    updated = cur.rowcount > 0
+                await conn.commit()
+                return updated
         except Exception as e:
-            conn.rollback()
             logger.error(f"Failed to update expense #{expense.id}: {e}")
             raise
-        finally:
-            release_connection(conn)
 
     # ── DELETE ────────────────────────────────────────────
 
-    def delete(self, expense_id: int, user_id: int) -> bool:
+    async def delete(self, expense_id: int, user_id: int) -> bool:
         """
         Delete an expense by ID, scoped to a user.
 
@@ -276,21 +264,19 @@ class ExpenseRepository:
             True if a row was deleted, False otherwise.
         """
         sql = "DELETE FROM expenses WHERE id = %s AND user_id = %s;"
-        conn = get_connection()
+        pool = get_pool()
         try:
-            with conn.cursor() as cur:
-                cur.execute(sql, (expense_id, user_id))
-                deleted = cur.rowcount > 0
-            conn.commit()
-            if deleted:
-                logger.info(f"Deleted expense #{expense_id} for user {user_id}")
-            return deleted
+            async with pool.connection() as conn:
+                async with conn.cursor() as cur:
+                    await cur.execute(sql, (expense_id, user_id))
+                    deleted = cur.rowcount > 0
+                await conn.commit()
+                if deleted:
+                    logger.info(f"Deleted expense #{expense_id} for user {user_id}")
+                return deleted
         except Exception as e:
-            conn.rollback()
             logger.error(f"Failed to delete expense #{expense_id}: {e}")
             raise
-        finally:
-            release_connection(conn)
 
     # ── HELPERS ───────────────────────────────────────────
 

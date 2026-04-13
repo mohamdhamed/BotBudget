@@ -51,7 +51,7 @@ class ChartService:
     def __init__(self):
         self.repo = ExpenseRepository()
 
-    def generate_monthly_pie(self, user_id: int, year: int = None,
+    async def generate_monthly_pie(self, user_id: int, year: int = None,
                               month: int = None) -> io.BytesIO | None:
         """
         Generate a pie chart of expenses by category for a given month.
@@ -66,7 +66,7 @@ class ChartService:
         start = date(y, m, 1)
         end = date(y, m + 1, 1) - timedelta(days=1) if m < 12 else date(y, 12, 31)
 
-        categories = self.repo.get_category_summary(user_id, start, end)
+        categories = await self.repo.get_category_summary(user_id, start, end)
         if not categories:
             return None
 
@@ -128,7 +128,7 @@ class ChartService:
         logger.info(f"Generated pie chart for user {user_id}, {m}/{y}")
         return buf
 
-    def generate_weekly_bar(self, user_id: int) -> io.BytesIO | None:
+    async def generate_weekly_bar(self, user_id: int) -> io.BytesIO | None:
         """
         Generate a bar chart of daily expenses for the last 7 days.
 
@@ -138,7 +138,7 @@ class ChartService:
         today = date.today()
         week_start = today - timedelta(days=6)
 
-        expenses = self.repo.get_by_date_range(user_id, week_start, today)
+        expenses = await self.repo.get_by_date_range(user_id, week_start, today)
         if not expenses:
             return None
 

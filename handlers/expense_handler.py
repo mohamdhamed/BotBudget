@@ -41,15 +41,15 @@ async def handle_text_message(update: Update, context: ContextTypes.DEFAULT_TYPE
         return
 
     # Ensure user exists
-    user_repo.ensure_user(user.id, user.first_name)
+    await user_repo.ensure_user(user.id, user.first_name)
 
     # Process via service
-    result = expense_service.add_from_text(user.id, text)
+    result = await expense_service.add_from_text(user.id, text)
 
     if result.get("success"):
         reply = result["message"]
         # Check budget alert
-        alert = budget_service.check_budget_alert(
+        alert = await budget_service.check_budget_alert(
             user.id, result.get("category", ""), 0
         )
         if alert:
@@ -63,7 +63,7 @@ async def handle_text_message(update: Update, context: ContextTypes.DEFAULT_TYPE
 async def today_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Handle /today command - show today's summary."""
     user = update.effective_user
-    summary = expense_service.get_today_summary(user.id)
+    summary = await expense_service.get_today_summary(user.id)
     await update.message.reply_text(summary)
 
 
@@ -72,7 +72,7 @@ async def today_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
 async def month_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Handle /month command - show current month's summary."""
     user = update.effective_user
-    summary = expense_service.get_month_summary(user.id)
+    summary = await expense_service.get_month_summary(user.id)
     await update.message.reply_text(summary)
 
 
@@ -81,7 +81,7 @@ async def month_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
 async def week_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Handle /week command - show last 7 days summary."""
     user = update.effective_user
-    summary = expense_service.get_week_summary(user.id)
+    summary = await expense_service.get_week_summary(user.id)
     await update.message.reply_text(summary)
 
 
@@ -104,7 +104,7 @@ async def delete_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         await update.message.reply_text("⚠️ رقم العملية لازم يكون رقم صحيح.")
         return
 
-    msg = expense_service.delete_expense(expense_id, user.id)
+    msg = await expense_service.delete_expense(expense_id, user.id)
     await update.message.reply_text(msg)
 
 
@@ -169,7 +169,7 @@ async def edit_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
     if desc_match:
         description = desc_match.group(1).strip()
 
-    msg = expense_service.edit_expense(expense_id, user.id, amount, category, description)
+    msg = await expense_service.edit_expense(expense_id, user.id, amount, category, description)
     await update.message.reply_text(msg)
 
 
@@ -202,7 +202,7 @@ async def category_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         return
 
     category = context.args[0]
-    msg = expense_service.get_category_details(user.id, category)
+    msg = await expense_service.get_category_details(user.id, category)
     await update.message.reply_text(msg)
 
 
@@ -230,7 +230,7 @@ async def compare_command(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         await update.message.reply_text("⚠️ الاستخدام: `/compare [شهر1] [شهر2]`", parse_mode="Markdown")
         return
 
-    msg = expense_service.compare_months(user.id, m1, y1, m2, y2)
+    msg = await expense_service.compare_months(user.id, m1, y1, m2, y2)
     await update.message.reply_text(msg)
 
 
@@ -256,7 +256,7 @@ async def search_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         return
 
     query = " ".join(context.args)
-    msg = expense_service.search_transactions(user.id, query)
+    msg = await expense_service.search_transactions(user.id, query)
     await update.message.reply_text(msg)
 
 
@@ -289,7 +289,7 @@ async def report_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         await update.message.reply_text("⚠️ التاريخ لازم يكون بالصيغة: YYYY-MM-DD")
         return
 
-    msg = expense_service.get_date_range_report(user.id, start, end)
+    msg = await expense_service.get_date_range_report(user.id, start, end)
     await update.message.reply_text(msg)
 
 
@@ -298,6 +298,6 @@ async def report_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 async def balance_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Handle /balance command - show overall balance."""
     user = update.effective_user
-    msg = expense_service.get_balance(user.id)
+    msg = await expense_service.get_balance(user.id)
     await update.message.reply_text(msg, parse_mode="Markdown")
 

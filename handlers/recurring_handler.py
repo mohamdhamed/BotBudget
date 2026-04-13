@@ -101,7 +101,7 @@ def _parse_manual(text: str) -> dict | None:
 async def recurring_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Handle /recurring command - list all active recurring payments."""
     user = update.effective_user
-    msg = recurring_service.list_active(user.id)
+    msg = await recurring_service.list_active(user.id)
     await update.message.reply_text(msg)
 
 
@@ -142,7 +142,7 @@ async def add_recurring_command(update: Update, context: ContextTypes.DEFAULT_TY
 
     if parsed:
         # Direct structured command → no AI needed
-        result = recurring_service.add_manual(
+        result = await recurring_service.add_manual(
             user_id=user.id,
             name=parsed["name"],
             amount=parsed["amount"],
@@ -151,7 +151,7 @@ async def add_recurring_command(update: Update, context: ContextTypes.DEFAULT_TY
         )
     else:
         # Fallback to AI parsing
-        result = recurring_service.add_from_text(user.id, text)
+        result = await recurring_service.add_from_text(user.id, text)
 
     if result.get("success"):
         await update.message.reply_text(result["message"])
@@ -181,5 +181,5 @@ async def delete_recurring_command(update: Update, context: ContextTypes.DEFAULT
         await update.message.reply_text("⚠️ رقم الدفعة لازم يكون رقم صحيح.")
         return
 
-    msg = recurring_service.delete_payment(payment_id, user.id)
+    msg = await recurring_service.delete_payment(payment_id, user.id)
     await update.message.reply_text(msg)
