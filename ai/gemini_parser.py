@@ -127,7 +127,7 @@ def parse_transaction(text: str) -> dict:
 
     try:
         model = genai.GenerativeModel(
-            "gemini-2.5-flash",
+            "gemini-2.0-flash",
             system_instruction=system_prompt,
         )
         response = model.generate_content(
@@ -202,7 +202,7 @@ def parse_recurring(text: str) -> dict:
 """
     try:
         model = genai.GenerativeModel(
-            "gemini-2.5-flash",
+            "gemini-2.0-flash",
             system_instruction=recurring_prompt,
         )
         response = model.generate_content(
