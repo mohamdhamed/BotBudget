@@ -37,6 +37,13 @@ ALLOWED_USER_IDS: list[int] = (
     else []
 )
 
+_raw_admin_ids = os.getenv("ADMIN_USER_IDS", "")
+ADMIN_USER_IDS: list[int] = (
+    [int(uid.strip()) for uid in _raw_admin_ids.split(",") if uid.strip()]
+    if _raw_admin_ids
+    else []
+)
+
 # ── Rate Limiting ─────────────────────────────────────────
 RATE_LIMIT_MESSAGES: int = int(os.getenv("RATE_LIMIT_MESSAGES", "30"))
 RATE_LIMIT_WINDOW_SECONDS: int = int(os.getenv("RATE_LIMIT_WINDOW_SECONDS", "60"))

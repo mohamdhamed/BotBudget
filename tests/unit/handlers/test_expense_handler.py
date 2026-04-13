@@ -25,7 +25,7 @@ from telegram.ext import ContextTypes
 
 
 @pytest.mark.asyncio
-@patch('security.auth.ALLOWED_USER_IDS', [123])
+@patch('security.auth.ADMIN_USER_IDS', [123])
 @patch('security.rate_limiter._cleanup', new_callable=AsyncMock)
 @patch('security.rate_limiter._count', new_callable=AsyncMock, return_value=0)
 @patch('security.rate_limiter._record', new_callable=AsyncMock)
@@ -58,7 +58,7 @@ async def test_handle_text_message_add_expense(mock_parse, mock_record, mock_cou
 
 
 @pytest.mark.asyncio
-@patch('security.auth.ALLOWED_USER_IDS', [123])
+@patch('security.auth.ADMIN_USER_IDS', [123])
 @patch('security.rate_limiter._cleanup', new_callable=AsyncMock)
 @patch('security.rate_limiter._count', new_callable=AsyncMock, return_value=0)
 @patch('security.rate_limiter._record', new_callable=AsyncMock)
