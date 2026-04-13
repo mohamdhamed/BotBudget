@@ -14,6 +14,7 @@ from datetime import date, time as dt_time, timedelta
 from telegram import BotCommand
 from telegram.ext import (
     Application,
+    CallbackQueryHandler,
     CommandHandler,
     MessageHandler,
     filters,
@@ -35,6 +36,9 @@ from handlers.expense_handler import (
     search_command,
     report_command,
     balance_command,
+    last_command,
+    undo_command,
+    handle_expense_callback,
 )
 from handlers.recurring_handler import (
     recurring_command,
@@ -46,6 +50,7 @@ from handlers.chart_handler import chart_command, chart_week_command
 from handlers.budget_handler import budget_command
 from services.recurring_service import RecurringService
 from services.expense_service import ExpenseService
+from security.rate_limiter import cleanup_old_rate_limit_logs
 from utils.logger import get_logger
 
 logger = get_logger(__name__)
@@ -127,6 +132,8 @@ async def set_bot_commands(application: Application) -> None:
         BotCommand("export_csv", "📄 تصدير CSV"),
         BotCommand("export_excel", "📊 تصدير Excel"),
         BotCommand("myid", "🆔 رقم حسابك"),
+        BotCommand("last", "🕓 آخر ٥ معاملات"),
+        BotCommand("undo", "↩️ إلغاء آخر معاملة"),
     ]
     await application.bot.set_my_commands(commands)
     logger.info("Bot commands menu registered successfully.")
@@ -169,9 +176,14 @@ def main() -> None:
     app.add_handler(CommandHandler("search", search_command))
     app.add_handler(CommandHandler("report", report_command))
     app.add_handler(CommandHandler("balance", balance_command))
+    app.add_handler(CommandHandler("last", last_command))
+    app.add_handler(CommandHandler("undo", undo_command))
 
     # ── 4. Register text message handler (catch-all) ──────
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_text_message))
+
+    # ── 4b. Register inline keyboard callback handler ─────
+    app.add_handler(CallbackQueryHandler(handle_expense_callback, pattern="^(confirm|cancel)_expense$"))
 
     # ── 5. Schedule jobs ──────────────────────────────────
     job_queue = app.job_queue
@@ -188,11 +200,18 @@ def main() -> None:
             days=(6,),  # Sunday
             name="weekly_report",
         )
-        logger.info("Scheduled daily reminders (09:00) + weekly report (Sunday 20:00)")
+        # Hourly cleanup of old rate limit log entries
+        job_queue.run_repeating(
+            cleanup_old_rate_limit_logs,
+            interval=3600,
+            first=60,
+            name="rate_limit_cleanup",
+        )
+        logger.info("Scheduled daily reminders (09:00) + weekly report (Sunday 20:00) + rate limit cleanup (hourly)")
 
     # ── 6. Start polling ──────────────────────────────────
     logger.info("🚀 BotBudget is running! Press Ctrl+C to stop.")
-    app.run_polling(drop_pending_updates=True, allowed_updates=["message"])
+    app.run_polling(drop_pending_updates=True, allowed_updates=["message", "callback_query"])
 
     # ── 7. Cleanup on shutdown ────────────────────────────
     import asyncio

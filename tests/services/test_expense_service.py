@@ -83,3 +83,128 @@ async def test_get_week_summary(expense_service, mock_repo):
     assert "الصنافي" not in result # check random word not there
     assert "Food: 50.00€" in result
     assert "Transport: 20.00€" in result
+
+
+@pytest.mark.asyncio
+async def test_delete_expense(expense_service, mock_repo):
+    """Test deleting an expense."""
+    mock_repo.delete.return_value = True
+    
+    result = await expense_service.delete_expense(user_id=1, expense_id=5)
+    
+    assert result["success"] is True
+    mock_repo.delete.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_delete_nonexistent_expense(expense_service, mock_repo):
+    """Test deleting a non-existent expense."""
+    mock_repo.delete.return_value = False
+    
+    result = await expense_service.delete_expense(user_id=1, expense_id=999)
+    
+    assert result["success"] is False
+
+
+@pytest.mark.asyncio
+async def test_get_today_summary(expense_service, mock_repo):
+    """Test getting today's expense summary."""
+    mock_repo.get_by_date_range.return_value = [
+        Expense(user_id=1, type="expense", amount=100.0, category="Food", date=date.today()),
+        Expense(user_id=1, type="expense", amount=50.0, category="Coffee", date=date.today())
+    ]
+    
+    result = await expense_service.get_today_summary(user_id=1)
+    
+    assert result["success"] is True
+    assert "150" in result["message"]  # Total should be 150
+
+
+@pytest.mark.asyncio
+async def test_get_month_summary(expense_service, mock_repo):
+    """Test getting month summary by category."""
+    mock_repo.get_category_summary.return_value = [
+        {"category": "Food", "total": 450.0},
+        {"category": "Transport", "total": 150.0}
+    ]
+    
+    result = await expense_service.get_month_summary(user_id=1)
+    
+    assert result["success"] is True
+    assert "Food" in result["message"]
+    assert "450" in result["message"]
+
+
+@pytest.mark.asyncio
+async def test_edit_expense(expense_service, mock_repo):
+    """Test editing an expense."""
+    mock_repo.update.return_value = Expense(
+        user_id=1, type="expense", amount=200.0, category="Food", date=date.today()
+    )
+    
+    result = await expense_service.edit_expense(
+        user_id=1, expense_id=5, amount=200.0
+    )
+    
+    assert result["success"] is True
+    mock_repo.update.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_get_category_details(expense_service, mock_repo):
+    """Test getting detailed category breakdown."""
+    mock_repo.get_by_category.return_value = [
+        Expense(user_id=1, type="expense", amount=100.0, category="Food"),
+        Expense(user_id=1, type="expense", amount=50.0, category="Food")
+    ]
+    
+    result = await expense_service.get_category_details(
+        user_id=1, category="Food"
+    )
+    
+    assert result["success"] is True
+    assert "150" in result["message"]
+
+
+@pytest.mark.asyncio
+async def test_search_transactions(expense_service, mock_repo):
+    """Test searching transactions by text."""
+    mock_repo.search_by_text.return_value = [
+        Expense(user_id=1, amount=50.0, description="Coffee")
+    ]
+    
+    result = await expense_service.search_transactions(
+        user_id=1, query="coffee"
+    )
+    
+    assert result["success"] is True
+    mock_repo.search_by_text.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_compare_months(expense_service, mock_repo):
+    """Test comparing expenses between two months."""
+    mock_repo.get_by_date_range.side_effect = [
+        # March expenses
+        [Expense(user_id=1, type="expense", amount=500.0, category="Food")],
+        # April expenses
+        [Expense(user_id=1, type="expense", amount=600.0, category="Food")]
+    ]
+    
+    result = await expense_service.compare_months(user_id=1)
+    
+    assert result["success"] is True
+
+
+@pytest.mark.asyncio  
+async def test_get_balance(expense_service, mock_repo):
+    """Test getting overall balance (income - expenses)."""
+    mock_repo.get_overall_balance.return_value = {
+        "income": 1000.0,
+        "expense": 400.0
+    }
+    
+    result = await expense_service.get_balance(user_id=1)
+    
+    assert result["success"] is True
+    assert "600" in result["message"]  # 1000 - 400 = 600

@@ -57,7 +57,9 @@ _SYSTEM_PROMPT = """أنت مساعد مالي شخصي ذكي. مهمتك ال�
 
 ## التنسيق:
 أرجع JSON فقط بدون أي شرح أو markdown:
-{"type":"expense|income","amount":<رقم>,"category":"<فئة>","description":"<وصف>","date":"YYYY-MM-DD"}
+{"type":"expense|income","amount":<رقم>,"category":"<فئة>","description":"<وصف>","date":"YYYY-MM-DD","confidence":<0.0-1.0>}
+
+حقل confidence: مدى ثقتك في التحليل (1.0 = متأكد تماماً، 0.5 = محتمل، 0.3 = تخمين)
 
 إذا مش واضحة خالص: {"error":"unclear","question":"<سؤال توضيحي بالعربي>"}
 """

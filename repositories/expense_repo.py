@@ -5,6 +5,7 @@ Data access layer for expense/income transactions.
 All SQL queries related to the `expenses` table live here.
 """
 
+import json
 from datetime import date
 from typing import Optional
 
@@ -47,6 +48,16 @@ class ExpenseRepository:
                     row = await cur.fetchone()
                     expense.id = row[0]
                     expense.created_at = row[1]
+                    # Audit trail
+                    new_data = json.dumps({
+                        "type": expense.type, "amount": str(expense.amount),
+                        "currency": expense.currency, "category": expense.category,
+                        "description": expense.description, "date": str(expense.date),
+                    }, ensure_ascii=False)
+                    await cur.execute(
+                        "INSERT INTO expense_history (expense_id, user_id, action, new_data) VALUES (%s, %s, 'create', %s::jsonb);",
+                        (expense.id, expense.user_id, new_data),
+                    )
                 await conn.commit()
             logger.info(f"Added {expense.type} #{expense.id} for user {expense.user_id}")
             return expense
@@ -234,20 +245,43 @@ class ExpenseRepository:
         Returns:
             True if a row was updated, False otherwise.
         """
-        sql = """
-            UPDATE expenses
-            SET amount = %s, category = %s, description = %s, date = %s, type = %s
-            WHERE id = %s AND user_id = %s;
-        """
         pool = get_pool()
         try:
             async with pool.connection() as conn:
                 async with conn.cursor() as cur:
-                    await cur.execute(sql, (
-                        expense.amount, expense.category, expense.description,
-                        expense.date, expense.type, expense.id, expense.user_id,
-                    ))
+                    # Fetch old data for audit before updating
+                    await cur.execute(
+                        "SELECT type, amount, currency, category, description, date FROM expenses WHERE id = %s AND user_id = %s;",
+                        (expense.id, expense.user_id),
+                    )
+                    old_row = await cur.fetchone()
+                    old_data = None
+                    if old_row:
+                        old_data = json.dumps({
+                            "type": old_row[0], "amount": str(old_row[1]),
+                            "currency": old_row[2], "category": old_row[3],
+                            "description": old_row[4], "date": str(old_row[5]),
+                        }, ensure_ascii=False)
+
+                    await cur.execute(
+                        """UPDATE expenses
+                           SET amount = %s, category = %s, description = %s, date = %s, type = %s
+                           WHERE id = %s AND user_id = %s;""",
+                        (expense.amount, expense.category, expense.description,
+                         expense.date, expense.type, expense.id, expense.user_id),
+                    )
                     updated = cur.rowcount > 0
+
+                    if updated and old_data:
+                        new_data = json.dumps({
+                            "type": expense.type, "amount": str(expense.amount),
+                            "currency": expense.currency, "category": expense.category,
+                            "description": expense.description, "date": str(expense.date),
+                        }, ensure_ascii=False)
+                        await cur.execute(
+                            "INSERT INTO expense_history (expense_id, user_id, action, old_data, new_data) VALUES (%s, %s, 'update', %s::jsonb, %s::jsonb);",
+                            (expense.id, expense.user_id, old_data, new_data),
+                        )
                 await conn.commit()
                 return updated
         except Exception as e:
@@ -263,13 +297,32 @@ class ExpenseRepository:
         Returns:
             True if a row was deleted, False otherwise.
         """
-        sql = "DELETE FROM expenses WHERE id = %s AND user_id = %s;"
         pool = get_pool()
         try:
             async with pool.connection() as conn:
                 async with conn.cursor() as cur:
-                    await cur.execute(sql, (expense_id, user_id))
+                    # Fetch record before deleting for audit
+                    await cur.execute(
+                        "SELECT type, amount, currency, category, description, date FROM expenses WHERE id = %s AND user_id = %s;",
+                        (expense_id, user_id),
+                    )
+                    old_row = await cur.fetchone()
+                    old_data = None
+                    if old_row:
+                        old_data = json.dumps({
+                            "type": old_row[0], "amount": str(old_row[1]),
+                            "currency": old_row[2], "category": old_row[3],
+                            "description": old_row[4], "date": str(old_row[5]),
+                        }, ensure_ascii=False)
+
+                    await cur.execute("DELETE FROM expenses WHERE id = %s AND user_id = %s;", (expense_id, user_id))
                     deleted = cur.rowcount > 0
+
+                    if deleted and old_data:
+                        await cur.execute(
+                            "INSERT INTO expense_history (expense_id, user_id, action, old_data) VALUES (%s, %s, 'delete', %s::jsonb);",
+                            (expense_id, user_id, old_data),
+                        )
                 await conn.commit()
                 if deleted:
                     logger.info(f"Deleted expense #{expense_id} for user {user_id}")
@@ -277,6 +330,40 @@ class ExpenseRepository:
         except Exception as e:
             logger.error(f"Failed to delete expense #{expense_id}: {e}")
             raise
+
+    async def get_last_n(self, user_id: int, n: int = 5) -> list[Expense]:
+        """Fetch the last N transactions for a user ordered by creation time."""
+        sql = "SELECT * FROM expenses WHERE user_id = %s ORDER BY id DESC LIMIT %s;"
+        pool = get_pool()
+        async with pool.connection() as conn:
+            async with conn.cursor() as cur:
+                await cur.execute(sql, (user_id, n))
+                rows = await cur.fetchall()
+                return [self._row_to_expense(r) for r in rows]
+
+    async def get_currencies_in_range(self, user_id: int, start: date, end: date) -> list[str]:
+        """Return distinct currencies used by a user within a date range."""
+        sql = """
+            SELECT DISTINCT currency FROM expenses
+            WHERE user_id = %s AND date BETWEEN %s AND %s
+            ORDER BY currency;
+        """
+        pool = get_pool()
+        async with pool.connection() as conn:
+            async with conn.cursor() as cur:
+                await cur.execute(sql, (user_id, start, end))
+                rows = await cur.fetchall()
+                return [r[0] for r in rows]
+
+    async def get_all_currencies(self, user_id: int) -> list[str]:
+        """Return all distinct currencies ever used by a user."""
+        sql = "SELECT DISTINCT currency FROM expenses WHERE user_id = %s ORDER BY currency;"
+        pool = get_pool()
+        async with pool.connection() as conn:
+            async with conn.cursor() as cur:
+                await cur.execute(sql, (user_id,))
+                rows = await cur.fetchall()
+                return [r[0] for r in rows]
 
     # ── HELPERS ───────────────────────────────────────────
 

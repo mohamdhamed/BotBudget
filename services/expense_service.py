@@ -77,6 +77,46 @@ class ExpenseService:
             logger.error(f"Validation error for parsed data: {e}, parsed: {parsed}")
             return {"success": False, "question": "حصل مشكلة في البيانات. حاول تاني بصيغة مختلفة."}
 
+    async def add_from_parsed(self, user_id: int, parsed: dict) -> dict:
+        """
+        Save a pre-parsed transaction (from inline keyboard confirmation).
+
+        Args:
+            user_id: Telegram user ID.
+            parsed: Dict from Gemini with type, amount, category, description, date, raw_text.
+
+        Returns:
+            Same format as add_from_text.
+        """
+        try:
+            expense = Expense(
+                user_id=user_id,
+                type=parsed["type"],
+                amount=float(parsed["amount"]),
+                category=parsed.get("category", "أخرى"),
+                description=parsed.get("description"),
+                date=date.fromisoformat(parsed["date"]),
+                raw_text=parsed.get("raw_text"),
+            )
+            saved = await self.repo.add(expense)
+
+            emoji = "💸" if saved.is_expense() else "💰"
+            msg = (
+                f"{emoji} تم تسجيل {saved.type}:\n"
+                f"  📂 الفئة: {saved.category}\n"
+                f"  💶 المبلغ: {saved.amount:.2f} {saved.currency}\n"
+                f"  📅 التاريخ: {saved.date}\n"
+            )
+            if saved.description:
+                msg += f"  📝 ملاحظة: {saved.description}\n"
+            msg += f"  🔖 رقم العملية: #{saved.id}"
+
+            return {"success": True, "message": msg, "category": saved.category}
+
+        except (KeyError, ValueError) as e:
+            logger.error(f"Validation error in add_from_parsed: {e}")
+            return {"success": False, "question": "حصل مشكلة في البيانات. حاول تاني بصيغة مختلفة."}
+
     async def delete_expense(self, expense_id: int, user_id: int) -> str:
         """
         Delete an expense by ID.
@@ -89,6 +129,12 @@ class ExpenseService:
             return f"🗑️ تم حذف العملية رقم #{expense_id} بنجاح."
         return f"⚠️ العملية رقم #{expense_id} مش موجودة أو مش ليك."
 
+    def _currency_warning(self, currencies: list[str]) -> str:
+        """Return a warning string if multiple currencies are detected."""
+        if len(currencies) > 1:
+            return f"\n\n⚠️ تنبيه: الأرقام تشمل عملات مختلفة ({', '.join(currencies)}) وغير محوَّلة — قد لا تكون دقيقة."
+        return ""
+
     async def get_today_summary(self, user_id: int) -> str:
         """Get a summary of today's transactions."""
         today = date.today()
@@ -98,6 +144,7 @@ class ExpenseService:
 
         total_exp = sum(e.amount for e in expenses if e.is_expense())
         total_inc = sum(e.amount for e in expenses if e.is_income())
+        currencies = await self.repo.get_currencies_in_range(user_id, today, today)
 
         lines = [f"📊 ملخص النهاردة ({today}):\n"]
         for e in expenses:
@@ -107,7 +154,7 @@ class ExpenseService:
         lines.append(f"\n💸 إجمالي المصاريف: {total_exp:.2f}€")
         lines.append(f"💰 إجمالي الدخل: {total_inc:.2f}€")
         lines.append(f"📈 الصافي: {total_inc - total_exp:.2f}€")
-        return "\n".join(lines)
+        return "\n".join(lines) + self._currency_warning(currencies)
 
     async def get_month_summary(self, user_id: int, year: Optional[int] = None, month: Optional[int] = None) -> str:
         """Get a summary of a specific month's transactions."""
@@ -115,12 +162,12 @@ class ExpenseService:
         y = year or today.year
         m = month or today.month
 
+        start = date(y, m, 1)
+        end = date(y, m + 1, 1) - timedelta(days=1) if m < 12 else date(y, 12, 31)
+
         totals = await self.repo.get_monthly_total(user_id, y, m)
-        categories = await self.repo.get_category_summary(
-            user_id,
-            date(y, m, 1),
-            date(y, m + 1, 1) - timedelta(days=1) if m < 12 else date(y, 12, 31),
-        )
+        categories = await self.repo.get_category_summary(user_id, start, end)
+        currencies = await self.repo.get_currencies_in_range(user_id, start, end)
 
         lines = [f"📊 ملخص شهر {m}/{y}:\n"]
         lines.append(f"💸 إجمالي المصاريف: {totals['total_expenses']:.2f}€")
@@ -133,7 +180,7 @@ class ExpenseService:
                 pct = (cat["total"] / totals["total_expenses"] * 100) if totals["total_expenses"] > 0 else 0
                 lines.append(f"  • {cat['category']}: {cat['total']:.2f}€ ({pct:.0f}%)")
 
-        return "\n".join(lines)
+        return "\n".join(lines) + self._currency_warning(currencies)
 
     async def edit_expense(self, expense_id: int, user_id: int,
                      amount: float = None, category: str = None,
@@ -228,6 +275,8 @@ class ExpenseService:
             if e.is_expense():
                 cat_totals[e.category] = cat_totals.get(e.category, 0) + e.amount
 
+        currencies = await self.repo.get_currencies_in_range(user_id, week_start, today)
+
         lines = [f"📊 ملخص آخر ٧ أيام ({week_start} → {today}):\n"]
         lines.append(f"💸 إجمالي المصاريف: {total_exp:.2f}€")
         lines.append(f"💰 إجمالي الدخل: {total_inc:.2f}€")
@@ -239,7 +288,7 @@ class ExpenseService:
                 pct = (total / total_exp * 100) if total_exp > 0 else 0
                 lines.append(f"  • {cat}: {total:.2f}€ ({pct:.0f}%)")
 
-        return "\n".join(lines)
+        return "\n".join(lines) + self._currency_warning(currencies)
 
     async def compare_months(self, user_id: int, month1: int = None, year1: int = None,
                        month2: int = None, year2: int = None) -> str:
@@ -339,12 +388,45 @@ class ExpenseService:
         lines.append(f"\n📊 عدد المعاملات: {len(expenses)}")
         return "\n".join(lines)
 
+    async def get_last_expenses(self, user_id: int, n: int = 5) -> str:
+        """Get the last N transactions for a user."""
+        expenses = await self.repo.get_last_n(user_id, n)
+        if not expenses:
+            return "📭 مفيش معاملات مسجلة."
+
+        lines = [f"🕓 آخر {len(expenses)} معاملات:\n"]
+        for e in expenses:
+            sign = "🔴" if e.is_expense() else "🟢"
+            desc = f" - {e.description}" if e.description else ""
+            lines.append(f"  {sign} #{e.id} | {e.date} | {e.category} | {e.amount:.2f} {e.currency}{desc}")
+        lines.append("\n💡 للحذف: /delete <رقم> | لتعديل: /edit <رقم> مبلغ:<قيمة>")
+        return "\n".join(lines)
+
+    async def undo_last(self, user_id: int) -> str:
+        """Delete the most recent transaction for a user."""
+        expenses = await self.repo.get_last_n(user_id, 1)
+        if not expenses:
+            return "📭 مفيش معاملات لإلغائها."
+
+        expense = expenses[0]
+        deleted = await self.repo.delete(expense.id, user_id)
+        if deleted:
+            sign = "💸" if expense.is_expense() else "💰"
+            return (
+                f"↩️ تم إلغاء آخر معاملة:\n"
+                f"  {sign} #{expense.id} | {expense.category} | {expense.amount:.2f} {expense.currency}\n"
+                f"  📅 {expense.date}"
+            )
+        return "⚠️ فشل الإلغاء. حاول تاني."
+
     async def get_balance(self, user_id: int) -> str:
         """Get overall balance (all-time)."""
         result = await self.repo.get_overall_balance(user_id)
 
         today = date.today()
         month_totals = await self.repo.get_monthly_total(user_id, today.year, today.month)
+
+        all_currencies = await self.repo.get_all_currencies(user_id)
 
         lines = ["🏦 *رصيد الحساب*\n"]
         lines.append(f"💰 إجمالي الدخل: {result['total_income']:.2f}€")
@@ -359,4 +441,4 @@ class ExpenseService:
         lines.append(f"  💸 مصاريف: {month_totals['total_expenses']:.2f}€")
         lines.append(f"  📈 صافي: {month_totals['net']:.2f}€")
 
-        return "\n".join(lines)
+        return "\n".join(lines) + self._currency_warning(all_currencies)

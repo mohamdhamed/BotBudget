@@ -8,9 +8,10 @@ Delegates all logic to ExpenseService.
 import re
 from datetime import date
 
-from telegram import Update
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes
 
+from ai.gemini_parser import parse_transaction
 from repositories.user_repo import UserRepository
 from services.expense_service import ExpenseService
 from services.budget_service import BudgetService
@@ -43,20 +44,42 @@ async def handle_text_message(update: Update, context: ContextTypes.DEFAULT_TYPE
     # Ensure user exists
     await user_repo.ensure_user(user.id, user.first_name)
 
-    # Process via service
-    result = await expense_service.add_from_text(user.id, text)
+    # Parse via AI only (don't save yet — show confirmation keyboard first)
+    parsed = parse_transaction(text)
 
-    if result.get("success"):
-        reply = result["message"]
-        # Check budget alert
-        alert = await budget_service.check_budget_alert(
-            user.id, result.get("category", ""), 0
+    if "error" in parsed:
+        await update.message.reply_text(f"🤔 {parsed.get('question', 'حاول تاني.')}")
+        return
+
+    # Confidence check
+    confidence = parsed.get("confidence", 1.0)
+    if confidence < 0.4:
+        await update.message.reply_text(
+            f"🤔 مش قادر أفهم الرسالة دي بشكل كافي.\n{parsed.get('question', 'ممكن تعيد الصياغة؟')}"
         )
-        if alert:
-            reply += f"\n\n{alert}"
-        await update.message.reply_text(reply)
-    else:
-        await update.message.reply_text(f"🤔 {result.get('question', 'حاول تاني.')}")
+        return
+
+    # Store parsed data temporarily and show inline confirmation keyboard
+    context.user_data["pending_expense"] = {**parsed, "raw_text": text}
+
+    tx_type = "مصروف" if parsed.get("type") == "expense" else "دخل"
+    emoji = "💸" if parsed.get("type") == "expense" else "💰"
+    low_confidence_note = "\n⚠️ لم أكن متأكداً تماماً، تحقق من التفاصيل." if confidence < 0.6 else ""
+
+    preview = (
+        f"{emoji} *تأكيد {tx_type}:*\n"
+        f"  📂 الفئة: {parsed.get('category', 'أخرى')}\n"
+        f"  💶 المبلغ: {parsed.get('amount', 0):.2f}€\n"
+        f"  📅 التاريخ: {parsed.get('date', date.today())}"
+        f"{low_confidence_note}"
+    )
+    keyboard = InlineKeyboardMarkup([
+        [
+            InlineKeyboardButton("✅ تأكيد", callback_data="confirm_expense"),
+            InlineKeyboardButton("❌ إلغاء", callback_data="cancel_expense"),
+        ]
+    ])
+    await update.message.reply_text(preview, reply_markup=keyboard, parse_mode="Markdown")
 
 @authorized_only
 @rate_limited
@@ -300,4 +323,52 @@ async def balance_command(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     user = update.effective_user
     msg = await expense_service.get_balance(user.id)
     await update.message.reply_text(msg, parse_mode="Markdown")
+
+
+@authorized_only
+@rate_limited
+async def last_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Handle /last command - show last 5 transactions."""
+    user = update.effective_user
+    msg = await expense_service.get_last_expenses(user.id)
+    await update.message.reply_text(msg)
+
+
+@authorized_only
+@rate_limited
+async def undo_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Handle /undo command - delete the most recent transaction."""
+    user = update.effective_user
+    msg = await expense_service.undo_last(user.id)
+    await update.message.reply_text(msg)
+
+
+async def handle_expense_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Handle inline keyboard callbacks for expense confirmation."""
+    query = update.callback_query
+    await query.answer()
+
+    user = update.effective_user
+    data = query.data
+
+    if data == "cancel_expense":
+        context.user_data.pop("pending_expense", None)
+        await query.edit_message_text("❌ تم إلغاء العملية.")
+        return
+
+    if data == "confirm_expense":
+        pending = context.user_data.pop("pending_expense", None)
+        if not pending:
+            await query.edit_message_text("⚠️ انتهت صلاحية التأكيد. أعد إرسال الرسالة.")
+            return
+
+        result = await expense_service.add_from_parsed(user.id, pending)
+        if result.get("success"):
+            reply = result["message"]
+            alert = await budget_service.check_budget_alert(user.id, result.get("category", ""), 0)
+            if alert:
+                reply += f"\n\n{alert}"
+            await query.edit_message_text(reply)
+        else:
+            await query.edit_message_text(f"⚠️ فشل الحفظ. {result.get('question', 'حاول تاني.')}")
 
