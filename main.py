@@ -63,7 +63,7 @@ from handlers.export_handler import export_csv_command, export_excel_command
 from handlers.chart_handler import chart_command, chart_week_command
 from handlers.budget_handler import (
     budget_command,
-    handle_budget_action,
+    handle_budget_del_action,
     handle_budget_delete_cat,
     handle_budget_cancel,
     budget_set_conversation,
@@ -257,7 +257,7 @@ def main() -> None:
     app.add_handler(CallbackQueryHandler(handle_delete_confirm, pattern=r"^delok_\d+$"))
     app.add_handler(CallbackQueryHandler(handle_delete_pick, pattern="^del_cancel$"))
     app.add_handler(CallbackQueryHandler(handle_category_show, pattern=r"^catshow_"))
-    app.add_handler(CallbackQueryHandler(handle_budget_action, pattern=r"^budgetaction_"))
+    app.add_handler(CallbackQueryHandler(handle_budget_del_action, pattern=r"^budgetaction_del$"))
     app.add_handler(CallbackQueryHandler(handle_budget_delete_cat, pattern=r"^budgetdel_"))
     app.add_handler(CallbackQueryHandler(handle_budget_cancel, pattern="^cancel_budget$"))
     app.add_handler(CallbackQueryHandler(handle_cancel_generic, pattern="^cat_cancel$"))
