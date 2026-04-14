@@ -2,8 +2,9 @@
 security/auth.py
 -----------------
 Authentication middleware for the Telegram bot.
-Checks users against the DB-backed allowed_users table.
-Admins are defined in ADMIN_USER_IDS (config/.env).
+- All users are allowed (self-service registration).
+- Plan limits are enforced separately via @check_plan_limit.
+- Admins are defined in ADMIN_USER_IDS (config/.env).
 """
 
 from functools import wraps
@@ -13,18 +14,43 @@ from telegram import Update
 from telegram.ext import ContextTypes
 
 from config import ADMIN_USER_IDS
-from repositories.allowed_users_repo import AllowedUsersRepository
+from repositories.user_repo import UserRepository
+from repositories.subscription_repo import SubscriptionRepository
 from utils.logger import get_logger
 
 logger = get_logger(__name__)
 
-_allowed_users_repo = AllowedUsersRepository()
+_user_repo = UserRepository()
+_sub_repo = SubscriptionRepository()
+
+FREE_MONTHLY_LIMIT = 30
 
 
 def authorized_only(func: Callable):
     """
-    Decorator that restricts a handler to users in the allowed_users DB table.
-    Admins (ADMIN_USER_IDS) are always allowed.
+    Decorator that auto-registers any user and lets them through.
+    No whitelist — the bot is open to everyone.
+    """
+    @wraps(func)
+    async def wrapper(update: Update, context: ContextTypes.DEFAULT_TYPE, *args, **kwargs):
+        user = update.effective_user
+        if not user:
+            return
+
+        # Auto-register user + subscription on first contact
+        await _user_repo.ensure_user(user.id, user.first_name)
+        await _sub_repo.ensure_free(user.id)
+
+        return await func(update, context, *args, **kwargs)
+
+    return wrapper
+
+
+def check_plan_limit(func: Callable):
+    """
+    Decorator that checks if a free user has exceeded their monthly transaction limit.
+    Must be placed AFTER @authorized_only.
+    Premium users and admins bypass this check.
     """
     @wraps(func)
     async def wrapper(update: Update, context: ContextTypes.DEFAULT_TYPE, *args, **kwargs):
@@ -36,17 +62,23 @@ def authorized_only(func: Callable):
         if user.id in ADMIN_USER_IDS:
             return await func(update, context, *args, **kwargs)
 
-        # Check DB whitelist
-        allowed = await _allowed_users_repo.is_allowed(user.id)
-        if not allowed:
-            logger.warning(
-                f"🚫 Unauthorized access attempt: user_id={user.id}, "
-                f"username={user.username}, name={user.first_name}"
+        plan_info = await _sub_repo.get_plan(user.id)
+        if plan_info["is_premium"]:
+            return await func(update, context, *args, **kwargs)
+
+        # Free user — check monthly limit
+        count = await _sub_repo.count_month_transactions(user.id)
+        if count >= FREE_MONTHLY_LIMIT:
+            remaining_msg = (
+                f"⚠️ وصلت للحد الأقصى للخطة المجانية ({FREE_MONTHLY_LIMIT} معاملة/شهر).\n\n"
+                f"🌟 ترقّي للخطة المميزة لمعاملات بلا حدود!\n"
+                f"تواصل مع المشرف: اكتب /upgrade_info"
             )
-            await update.message.reply_text(
-                "⛔ عذراً, هذا البوت خاص ومش متاح للاستخدام العام."
-            )
+            await update.message.reply_text(remaining_msg)
             return
+
+        # Add remaining count hint if close to limit
+        context.user_data["remaining_transactions"] = FREE_MONTHLY_LIMIT - count - 1
 
         return await func(update, context, *args, **kwargs)
 
@@ -54,9 +86,7 @@ def authorized_only(func: Callable):
 
 
 def admin_only(func: Callable):
-    """
-    Decorator that restricts a handler to admins only (ADMIN_USER_IDS in .env).
-    """
+    """Restricts a handler to admins only (ADMIN_USER_IDS in .env)."""
     @wraps(func)
     async def wrapper(update: Update, context: ContextTypes.DEFAULT_TYPE, *args, **kwargs):
         user = update.effective_user

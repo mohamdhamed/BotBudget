@@ -23,8 +23,11 @@ from telegram.ext import (
 from config import TELEGRAM_BOT_TOKEN
 from db.connection import init_pool, close_pool
 from db.init_db import create_tables
-from handlers.admin_handler import adduser_command, removeuser_command, users_command
-from handlers.start_handler import start_command, help_command, myid_command
+from handlers.admin_handler import (
+    adduser_command, removeuser_command, users_command,
+    upgrade_command, downgrade_command, subscribers_command,
+)
+from handlers.start_handler import start_command, help_command, myid_command, plan_command, upgrade_info_command
 from handlers.expense_handler import (
     handle_text_message,
     today_command,
@@ -154,12 +157,17 @@ async def set_bot_commands(application: Application) -> None:
         BotCommand("chart_week", "📈 رسم بياني أسبوعي"),
         BotCommand("export_csv", "📄 تصدير CSV"),
         BotCommand("export_excel", "📊 تصدير Excel"),
+        BotCommand("plan", "📋 خطتك الحالية"),
+        BotCommand("upgrade_info", "🌟 معلومات الترقية"),
     ]
 
     admin_commands = user_commands + [
         BotCommand("adduser", "➕ إضافة مستخدم"),
         BotCommand("removeuser", "➖ حذف مستخدم"),
         BotCommand("users", "👥 قائمة المستخدمين"),
+        BotCommand("upgrade", "🌟 ترقية مستخدم"),
+        BotCommand("downgrade", "⬇️ إرجاع للمجاني"),
+        BotCommand("subscribers", "📊 المشتركون"),
     ]
 
     # Set default commands for all users
@@ -224,9 +232,14 @@ def main() -> None:
     app.add_handler(CommandHandler("balance", balance_command))
     app.add_handler(CommandHandler("last", last_command))
     app.add_handler(CommandHandler("undo", undo_command))
+    app.add_handler(CommandHandler("plan", plan_command))
+    app.add_handler(CommandHandler("upgrade_info", upgrade_info_command))
     app.add_handler(CommandHandler("adduser", adduser_command))
     app.add_handler(CommandHandler("removeuser", removeuser_command))
     app.add_handler(CommandHandler("users", users_command))
+    app.add_handler(CommandHandler("upgrade", upgrade_command))
+    app.add_handler(CommandHandler("downgrade", downgrade_command))
+    app.add_handler(CommandHandler("subscribers", subscribers_command))
 
     # ── 4. Text message handler (catch-all for AI parsing) ──
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_text_message))

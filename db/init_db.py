@@ -59,6 +59,15 @@ CREATE TABLE IF NOT EXISTS budgets (
     UNIQUE(user_id, category)
 );
 
+-- Subscriptions table: user plans (free / premium)
+CREATE TABLE IF NOT EXISTS subscriptions (
+    user_id         BIGINT PRIMARY KEY REFERENCES users(telegram_id) ON DELETE CASCADE,
+    plan            VARCHAR(20) NOT NULL DEFAULT 'free',
+    started_at      TIMESTAMPTZ DEFAULT NOW(),
+    expires_at      TIMESTAMPTZ,
+    upgraded_by     BIGINT
+);
+
 -- Indexes for faster queries
 CREATE INDEX IF NOT EXISTS idx_expenses_user_date ON expenses(user_id, date);
 CREATE INDEX IF NOT EXISTS idx_expenses_category ON expenses(user_id, category);

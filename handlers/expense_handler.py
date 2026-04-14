@@ -24,7 +24,7 @@ from ai.gemini_parser import parse_transaction
 from repositories.user_repo import UserRepository
 from services.expense_service import ExpenseService
 from services.budget_service import BudgetService
-from security.auth import authorized_only
+from security.auth import authorized_only, check_plan_limit
 from security.rate_limiter import rate_limited
 from utils.logger import get_logger
 
@@ -90,6 +90,7 @@ def _month_keyboard(prefix: str, n=6) -> InlineKeyboardMarkup:
 
 @authorized_only
 @rate_limited
+@check_plan_limit
 async def handle_text_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     user = update.effective_user
     text = update.message.text.strip()
@@ -151,6 +152,10 @@ async def handle_expense_callback(update: Update, context: ContextTypes.DEFAULT_
             alert = await budget_service.check_budget_alert(user.id, result.get("category", ""), 0)
             if alert:
                 reply += f"\n\n{alert}"
+            # Show remaining transactions hint for free users
+            remaining = context.user_data.get("remaining_transactions")
+            if remaining is not None and remaining <= 10:
+                reply += f"\n\n📊 متبقي {remaining} معاملة مجانية هذا الشهر."
             await query.edit_message_text(reply)
         else:
             await query.edit_message_text(f"⚠️ فشل الحفظ. {result.get('question', 'حاول تاني.')}")
