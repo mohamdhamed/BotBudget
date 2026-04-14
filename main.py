@@ -47,8 +47,13 @@ from handlers.expense_handler import (
 )
 from handlers.recurring_handler import (
     recurring_command,
-    add_recurring_command,
     delete_recurring_command,
+    add_recurring_conversation,
+    handle_rec_delete,
+    handle_rec_delete_confirm,
+    handle_rec_toggle,
+    handle_rec_cancel,
+    handle_rec_add_hint,
 )
 from handlers.export_handler import export_csv_command, export_excel_command
 from handlers.chart_handler import chart_command, chart_week_command
@@ -196,6 +201,7 @@ def main() -> None:
     app.add_handler(edit_conversation)
     app.add_handler(compare_conversation)
     app.add_handler(budget_set_conversation)
+    app.add_handler(add_recurring_conversation)
 
     # ── 3. Register command handlers ──────────────────────
     app.add_handler(CommandHandler("start", start_command))
@@ -207,7 +213,6 @@ def main() -> None:
     app.add_handler(CommandHandler("category", category_command))
     app.add_handler(CommandHandler("delete", delete_command))
     app.add_handler(CommandHandler("recurring", recurring_command))
-    app.add_handler(CommandHandler("add_recurring", add_recurring_command))
     app.add_handler(CommandHandler("delete_recurring", delete_recurring_command))
     app.add_handler(CommandHandler("export_csv", export_csv_command))
     app.add_handler(CommandHandler("export_excel", export_excel_command))
@@ -236,6 +241,12 @@ def main() -> None:
     app.add_handler(CallbackQueryHandler(handle_budget_delete_cat, pattern=r"^budgetdel_"))
     app.add_handler(CallbackQueryHandler(handle_budget_cancel, pattern="^cancel_budget$"))
     app.add_handler(CallbackQueryHandler(handle_cancel_generic, pattern="^cat_cancel$"))
+    # Recurring payment callbacks
+    app.add_handler(CallbackQueryHandler(handle_rec_delete, pattern=r"^recdel_\d+$"))
+    app.add_handler(CallbackQueryHandler(handle_rec_delete_confirm, pattern=r"^recdelok_\d+$"))
+    app.add_handler(CallbackQueryHandler(handle_rec_toggle, pattern=r"^rectoggle_\d+$"))
+    app.add_handler(CallbackQueryHandler(handle_rec_cancel, pattern="^rec_cancel$"))
+    app.add_handler(CallbackQueryHandler(handle_rec_add_hint, pattern="^rec_add_hint$"))
 
     # ── 6. Schedule jobs ──────────────────────────────────
     job_queue = app.job_queue

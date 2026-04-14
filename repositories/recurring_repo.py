@@ -7,6 +7,7 @@ All SQL queries related to the `recurring_payments` table live here.
 
 from datetime import date, timedelta
 from typing import Optional
+from dateutil.relativedelta import relativedelta
 
 from db.connection import get_pool
 from models.recurring import RecurringPayment
@@ -128,11 +129,11 @@ class RecurringRepository:
         delta_map = {
             "daily": timedelta(days=1),
             "weekly": timedelta(weeks=1),
-            "monthly": timedelta(days=30),
-            "yearly": timedelta(days=365),
+            "monthly": relativedelta(months=1),
+            "yearly": relativedelta(years=1),
         }
         new_date = payment.next_due_date + delta_map.get(
-            payment.frequency, timedelta(days=30)
+            payment.frequency, relativedelta(months=1)
         )
         sql = "UPDATE recurring_payments SET next_due_date = %s WHERE id = %s;"
         pool = get_pool()
