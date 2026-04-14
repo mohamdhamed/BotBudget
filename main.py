@@ -41,6 +41,7 @@ from handlers.expense_handler import (
     handle_delete_pick,
     handle_delete_confirm,
     handle_category_show,
+    handle_cancel_generic,
     edit_conversation,
     compare_conversation,
 )
@@ -234,6 +235,7 @@ def main() -> None:
     app.add_handler(CallbackQueryHandler(handle_budget_action, pattern=r"^budgetaction_"))
     app.add_handler(CallbackQueryHandler(handle_budget_delete_cat, pattern=r"^budgetdel_"))
     app.add_handler(CallbackQueryHandler(handle_budget_cancel, pattern="^cancel_budget$"))
+    app.add_handler(CallbackQueryHandler(handle_cancel_generic, pattern="^cat_cancel$"))
 
     # ── 6. Schedule jobs ──────────────────────────────────
     job_queue = app.job_queue

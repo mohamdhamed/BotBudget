@@ -126,7 +126,7 @@ async def budget_set_cat_selected(update: Update, context: ContextTypes.DEFAULT_
         await query.edit_message_text("✅ تم الإلغاء.")
         return ConversationHandler.END
 
-    category = query.data[15:]  # remove "budgetsetconv_"
+    category = query.data[14:]  # remove "budgetsetconv_"
     context.user_data["budget_set_cat"] = category
     await query.edit_message_text(f"💰 فئة: *{category}*\n\nاكتب مبلغ الميزانية الشهرية:", parse_mode="Markdown")
     return BUDGET_AMOUNT

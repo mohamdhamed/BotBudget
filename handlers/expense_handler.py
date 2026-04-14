@@ -55,14 +55,15 @@ CMP_M1, CMP_M2 = range(2)
 
 # ── Shared keyboard builders ─────────────────────────────
 
-def _category_keyboard(prefix: str) -> InlineKeyboardMarkup:
-    """3-column inline keyboard of all categories."""
+def _category_keyboard(prefix: str, cancel_data: str = "cancel_conv") -> InlineKeyboardMarkup:
+    """3-column inline keyboard of all categories with cancel button."""
     rows = []
     for i in range(0, len(CATEGORIES), 3):
         rows.append([
             InlineKeyboardButton(c, callback_data=f"{prefix}{c}")
             for c in CATEGORIES[i:i + 3]
         ])
+    rows.append([InlineKeyboardButton("❌ إلغاء", callback_data=cancel_data)])
     return InlineKeyboardMarkup(rows)
 
 
@@ -296,7 +297,7 @@ async def category_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -
 
     await update.message.reply_text(
         "🏷️ اختار الفئة:",
-        reply_markup=_category_keyboard("catshow_"),
+        reply_markup=_category_keyboard("catshow_", cancel_data="cat_cancel"),
     )
 
 
@@ -307,6 +308,13 @@ async def handle_category_show(update: Update, context: ContextTypes.DEFAULT_TYP
     category = query.data[8:]  # remove "catshow_"
     msg = await expense_service.get_category_details(update.effective_user.id, category)
     await query.edit_message_text(msg)
+
+
+async def handle_cancel_generic(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Generic cancel for standalone inline keyboards."""
+    query = update.callback_query
+    await query.answer()
+    await query.edit_message_text("✅ تم الإلغاء.")
 
 
 # ══════════════════════════════════════════════════════════
@@ -444,6 +452,7 @@ edit_conversation = ConversationHandler(
         ],
         EDIT_CAT_PICK: [
             CallbackQueryHandler(edit_category_picked, pattern=r"^editcat_"),
+            CallbackQueryHandler(_cancel_conv, pattern="^cancel_conv$"),
         ],
     },
     fallbacks=[CallbackQueryHandler(_cancel_conv, pattern="^cancel_conv$")],
