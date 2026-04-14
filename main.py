@@ -31,15 +31,18 @@ from handlers.expense_handler import (
     month_command,
     week_command,
     delete_command,
-    edit_command,
     category_command,
-    compare_command,
     search_command,
     report_command,
     balance_command,
     last_command,
     undo_command,
     handle_expense_callback,
+    handle_delete_pick,
+    handle_delete_confirm,
+    handle_category_show,
+    edit_conversation,
+    compare_conversation,
 )
 from handlers.recurring_handler import (
     recurring_command,
@@ -48,7 +51,13 @@ from handlers.recurring_handler import (
 )
 from handlers.export_handler import export_csv_command, export_excel_command
 from handlers.chart_handler import chart_command, chart_week_command
-from handlers.budget_handler import budget_command
+from handlers.budget_handler import (
+    budget_command,
+    handle_budget_action,
+    handle_budget_delete_cat,
+    handle_budget_cancel,
+    budget_set_conversation,
+)
 from repositories.allowed_users_repo import AllowedUsersRepository
 from services.recurring_service import RecurringService
 from services.expense_service import ExpenseService
@@ -123,7 +132,7 @@ async def set_bot_commands(application: Application) -> None:
         BotCommand("week", "📆 ملخص آخر ٧ أيام"),
         BotCommand("month", "📊 ملخص الشهر"),
         BotCommand("balance", "🏦 الرصيد"),
-        BotCommand("last", "🕓 آخر ٥ معاملات"),
+        BotCommand("last", "🕓 آخر ١٠ معاملات"),
         BotCommand("undo", "↩️ إلغاء آخر معاملة"),
         BotCommand("category", "🏷️ عرض حسب الفئة"),
         BotCommand("edit", "✏️ تعديل معاملة"),
@@ -182,6 +191,11 @@ def main() -> None:
     logger.info("Starting Telegram bot...")
     app = Application.builder().token(TELEGRAM_BOT_TOKEN).post_init(post_init).build()
 
+    # ── 2. ConversationHandlers (must be registered FIRST) ──
+    app.add_handler(edit_conversation)
+    app.add_handler(compare_conversation)
+    app.add_handler(budget_set_conversation)
+
     # ── 3. Register command handlers ──────────────────────
     app.add_handler(CommandHandler("start", start_command))
     app.add_handler(CommandHandler("help", help_command))
@@ -190,7 +204,6 @@ def main() -> None:
     app.add_handler(CommandHandler("week", week_command))
     app.add_handler(CommandHandler("month", month_command))
     app.add_handler(CommandHandler("category", category_command))
-    app.add_handler(CommandHandler("edit", edit_command))
     app.add_handler(CommandHandler("delete", delete_command))
     app.add_handler(CommandHandler("recurring", recurring_command))
     app.add_handler(CommandHandler("add_recurring", add_recurring_command))
@@ -200,7 +213,6 @@ def main() -> None:
     app.add_handler(CommandHandler("chart", chart_command))
     app.add_handler(CommandHandler("chart_week", chart_week_command))
     app.add_handler(CommandHandler("budget", budget_command))
-    app.add_handler(CommandHandler("compare", compare_command))
     app.add_handler(CommandHandler("search", search_command))
     app.add_handler(CommandHandler("report", report_command))
     app.add_handler(CommandHandler("balance", balance_command))
@@ -210,13 +222,20 @@ def main() -> None:
     app.add_handler(CommandHandler("removeuser", removeuser_command))
     app.add_handler(CommandHandler("users", users_command))
 
-    # ── 4. Register text message handler (catch-all) ──────
+    # ── 4. Text message handler (catch-all for AI parsing) ──
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_text_message))
 
-    # ── 4b. Register inline keyboard callback handler ─────
+    # ── 5. Callback query handlers (inline keyboards) ────
     app.add_handler(CallbackQueryHandler(handle_expense_callback, pattern="^(confirm|cancel)_expense$"))
+    app.add_handler(CallbackQueryHandler(handle_delete_pick, pattern=r"^del_\d+$"))
+    app.add_handler(CallbackQueryHandler(handle_delete_confirm, pattern=r"^delok_\d+$"))
+    app.add_handler(CallbackQueryHandler(handle_delete_pick, pattern="^del_cancel$"))
+    app.add_handler(CallbackQueryHandler(handle_category_show, pattern=r"^catshow_"))
+    app.add_handler(CallbackQueryHandler(handle_budget_action, pattern=r"^budgetaction_"))
+    app.add_handler(CallbackQueryHandler(handle_budget_delete_cat, pattern=r"^budgetdel_"))
+    app.add_handler(CallbackQueryHandler(handle_budget_cancel, pattern="^cancel_budget$"))
 
-    # ── 5. Schedule jobs ──────────────────────────────────
+    # ── 6. Schedule jobs ──────────────────────────────────
     job_queue = app.job_queue
     if job_queue:
         job_queue.run_daily(
@@ -240,11 +259,11 @@ def main() -> None:
         )
         logger.info("Scheduled daily reminders (09:00) + weekly report (Sunday 20:00) + rate limit cleanup (hourly)")
 
-    # ── 6. Start polling ──────────────────────────────────
+    # ── 7. Start polling ──────────────────────────────────
     logger.info("🚀 BotBudget is running! Press Ctrl+C to stop.")
     app.run_polling(drop_pending_updates=True, allowed_updates=["message", "callback_query"])
 
-    # ── 7. Cleanup on shutdown ────────────────────────────
+    # ── 8. Cleanup on shutdown ────────────────────────────
     import asyncio
     asyncio.get_event_loop().run_until_complete(close_pool())
     logger.info("BotBudget stopped.")
