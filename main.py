@@ -28,6 +28,7 @@ from handlers.admin_handler import (
     upgrade_command, downgrade_command, subscribers_command,
 )
 from handlers.start_handler import start_command, help_command, myid_command, plan_command, upgrade_info_command
+from handlers.legal_handler import terms_command, privacy_command, about_command
 from handlers.expense_handler import (
     handle_text_message,
     today_command,
@@ -159,6 +160,9 @@ async def set_bot_commands(application: Application) -> None:
         BotCommand("export_excel", "📊 تصدير Excel"),
         BotCommand("plan", "📋 خطتك الحالية"),
         BotCommand("upgrade_info", "🌟 معلومات الترقية"),
+        BotCommand("about", "ℹ️ عن البوت"),
+        BotCommand("terms", "📜 شروط الاستخدام"),
+        BotCommand("privacy", "🔒 سياسة الخصوصية"),
     ]
 
     admin_commands = user_commands + [
@@ -234,6 +238,9 @@ def main() -> None:
     app.add_handler(CommandHandler("undo", undo_command))
     app.add_handler(CommandHandler("plan", plan_command))
     app.add_handler(CommandHandler("upgrade_info", upgrade_info_command))
+    app.add_handler(CommandHandler("terms", terms_command))
+    app.add_handler(CommandHandler("privacy", privacy_command))
+    app.add_handler(CommandHandler("about", about_command))
     app.add_handler(CommandHandler("adduser", adduser_command))
     app.add_handler(CommandHandler("removeuser", removeuser_command))
     app.add_handler(CommandHandler("users", users_command))

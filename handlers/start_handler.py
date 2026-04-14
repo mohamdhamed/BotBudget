@@ -62,7 +62,10 @@ HELP_TEXT = """
 *🔧 أخرى:*
 /plan - خطتك الحالية
 /upgrade\\_info - معلومات الترقية
-/myid - رقم حسابك على تيليجرام
+/about - عن البوت
+/terms - شروط الاستخدام
+/privacy - سياسة الخصوصية
+/myid - رقم حسابك
 /help - عرض المساعدة
 """
 
@@ -176,11 +179,11 @@ async def upgrade_info_command(update: Update, context: ContextTypes.DEFAULT_TYP
         "  ✅ دعم أولوية\n\n"
         "*الخطة المجانية:*\n"
         f"  📊 {FREE_MONTHLY_LIMIT} معاملة/شهر فقط\n\n"
+        "*الأسعار:*\n"
+        "  💵 شهري: $3/شهر\n"
+        "  💵 سنوي: $20/سنة (وفّر 44%!)\n\n"
         "*للاشتراك:*\n"
-        "تواصل مع المشرف واختار مدة الاشتراك:\n"
-        "  • شهري\n"
-        "  • 3 أشهر\n"
-        "  • سنوي (أوفر)\n\n"
-        "📩 للاشتراك تواصل: @BotBudgetSupport",
+        "📩 تواصل: @BotBudgetSupport\n"
+        "💳 طرق الدفع: تحويل بنكي، PayPal، فودافون كاش",
         parse_mode="Markdown",
     )
