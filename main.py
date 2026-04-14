@@ -61,6 +61,7 @@ from handlers.recurring_handler import (
 )
 from handlers.export_handler import export_csv_command, export_excel_command
 from handlers.chart_handler import chart_command, chart_week_command
+from handlers.insights_handler import insights_command
 from handlers.budget_handler import (
     budget_command,
     handle_budget_del_action,
@@ -156,6 +157,7 @@ async def set_bot_commands(application: Application) -> None:
         BotCommand("report", "📋 تقرير مخصص"),
         BotCommand("chart", "📊 رسم بياني شهري"),
         BotCommand("chart_week", "📈 رسم بياني أسبوعي"),
+        BotCommand("insights", "🧠 تحليل ذكي وتوقعات"),
         BotCommand("export_csv", "📄 تصدير CSV"),
         BotCommand("export_excel", "📊 تصدير Excel"),
         BotCommand("plan", "📋 خطتك الحالية"),
@@ -230,6 +232,7 @@ def main() -> None:
     app.add_handler(CommandHandler("export_excel", export_excel_command))
     app.add_handler(CommandHandler("chart", chart_command))
     app.add_handler(CommandHandler("chart_week", chart_week_command))
+    app.add_handler(CommandHandler("insights", insights_command))
     app.add_handler(CommandHandler("budget", budget_command))
     app.add_handler(CommandHandler("search", search_command))
     app.add_handler(CommandHandler("report", report_command))
