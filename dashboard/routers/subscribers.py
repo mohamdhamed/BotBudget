@@ -14,9 +14,9 @@ async def subscribers_page(request: Request, user: str = Depends(verify_admin)):
     subs = await get_subscribers()
     expiring = [s for s in subs if s["expiring_soon"]]
     return request.app.state.templates.TemplateResponse(
+        request,
         "subscribers.html",
         {
-            "request": request,
             "subscribers": subs,
             "expiring": expiring,
             "active_page": "subscribers",

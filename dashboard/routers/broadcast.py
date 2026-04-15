@@ -52,9 +52,9 @@ async def broadcast_page(request: Request, user: str = Depends(verify_admin)):
     all_count = len(await get_all_user_ids())
     premium_count = len(await get_premium_user_ids())
     return request.app.state.templates.TemplateResponse(
+        request,
         "broadcast.html",
         {
-            "request": request,
             "all_count": all_count,
             "premium_count": premium_count,
             "result": None,
@@ -82,9 +82,9 @@ async def broadcast_send(
     premium_count = len(await get_premium_user_ids())
 
     return request.app.state.templates.TemplateResponse(
+        request,
         "broadcast.html",
         {
-            "request": request,
             "all_count": all_count,
             "premium_count": premium_count,
             "result": {"sent": sent, "failed": failed, "target": target},

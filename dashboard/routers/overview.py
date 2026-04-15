@@ -22,9 +22,9 @@ async def overview(request: Request, user: str = Depends(verify_admin)):
     top_cats = await get_top_categories(30)
 
     return request.app.state.templates.TemplateResponse(
+        request,
         "overview.html",
         {
-            "request": request,
             "stats": stats,
             "growth": growth,
             "activity": activity,

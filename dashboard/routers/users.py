@@ -15,9 +15,9 @@ _sub_repo = SubscriptionRepository()
 async def users_page(request: Request, search: str = "", user: str = Depends(verify_admin)):
     users = await get_all_users(search=search)
     return request.app.state.templates.TemplateResponse(
+        request,
         "users.html",
         {
-            "request": request,
             "users": users,
             "search": search,
             "active_page": "users",
