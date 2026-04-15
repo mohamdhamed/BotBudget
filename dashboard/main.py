@@ -15,7 +15,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
 from db.connection import init_pool, close_pool
-from dashboard.routers import overview, users, subscribers, broadcast
+from dashboard.routers import overview, users, subscribers, broadcast, data_mgmt
 from utils.logger import get_logger
 
 logger = get_logger(__name__)
@@ -56,6 +56,7 @@ app.include_router(overview.router)
 app.include_router(users.router)
 app.include_router(subscribers.router)
 app.include_router(broadcast.router)
+app.include_router(data_mgmt.router)
 
 
 @app.get("/health")

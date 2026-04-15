@@ -223,3 +223,199 @@ async def get_premium_user_ids() -> list[int]:
             )
             rows = await cur.fetchall()
     return [r[0] for r in rows]
+
+
+async def get_user_detail(user_id: int) -> dict | None:
+    """Full profile for a single user."""
+    pool = get_pool()
+    async with pool.connection() as conn:
+        async with conn.cursor() as cur:
+            # Basic info
+            await cur.execute(
+                """SELECT u.telegram_id, u.first_name, u.created_at,
+                          COALESCE(s.plan, 'free') as plan, s.expires_at
+                   FROM users u
+                   LEFT JOIN subscriptions s ON s.user_id = u.telegram_id
+                   WHERE u.telegram_id = %s;""",
+                (user_id,),
+            )
+            row = await cur.fetchone()
+            if not row:
+                return None
+            expires = row[4]
+            expires_date = expires.date() if expires and hasattr(expires, "date") else expires
+            user = {
+                "user_id": row[0],
+                "name": row[1],
+                "created_at": row[2].strftime("%Y-%m-%d") if row[2] else "",
+                "plan": row[3],
+                "expires_at": expires_date.strftime("%Y-%m-%d") if expires_date else None,
+            }
+
+            # Stats
+            await cur.execute(
+                """SELECT COUNT(*), COALESCE(SUM(amount), 0)
+                   FROM expenses WHERE user_id = %s AND type='expense';""",
+                (user_id,),
+            )
+            r = await cur.fetchone()
+            stats = {"tx_count": r[0], "total_spent": float(r[1])}
+
+            # Top categories
+            await cur.execute(
+                """SELECT category, COUNT(*) as cnt, SUM(amount) as total
+                   FROM expenses WHERE user_id = %s AND type='expense'
+                   GROUP BY category ORDER BY total DESC LIMIT 8;""",
+                (user_id,),
+            )
+            categories = [
+                {"category": r[0], "count": r[1], "total": float(r[2])}
+                for r in await cur.fetchall()
+            ]
+
+            # Monthly activity (last 6 months)
+            await cur.execute(
+                """SELECT TO_CHAR(date, 'YYYY-MM') as month, COUNT(*) as cnt, SUM(amount) as total
+                   FROM expenses WHERE user_id = %s AND type='expense'
+                   GROUP BY month ORDER BY month DESC LIMIT 6;""",
+                (user_id,),
+            )
+            monthly = [
+                {"month": r[0], "count": r[1], "total": float(r[2])}
+                for r in await cur.fetchall()
+            ]
+
+            # Last 50 transactions
+            await cur.execute(
+                """SELECT date, description, category, type, amount
+                   FROM expenses WHERE user_id = %s
+                   ORDER BY date DESC, id DESC LIMIT 50;""",
+                (user_id,),
+            )
+            transactions = [
+                {
+                    "date": r[0].strftime("%Y-%m-%d") if r[0] else "",
+                    "description": r[1],
+                    "category": r[2],
+                    "type": r[3],
+                    "amount": float(r[4]),
+                }
+                for r in await cur.fetchall()
+            ]
+
+    return {
+        "user": user,
+        "stats": stats,
+        "categories": categories,
+        "monthly": monthly,
+        "transactions": transactions,
+    }
+
+
+async def get_db_stats() -> dict:
+    """General DB statistics for data management page."""
+    pool = get_pool()
+    async with pool.connection() as conn:
+        async with conn.cursor() as cur:
+            await cur.execute("SELECT COUNT(*) FROM users;")
+            total_users = (await cur.fetchone())[0]
+
+            await cur.execute("SELECT COUNT(*) FROM expenses;")
+            total_expenses = (await cur.fetchone())[0]
+
+            await cur.execute(
+                """SELECT COUNT(*) FROM users u
+                   WHERE NOT EXISTS (SELECT 1 FROM expenses e WHERE e.user_id = u.telegram_id);"""
+            )
+            users_no_tx = (await cur.fetchone())[0]
+
+            await cur.execute("SELECT MIN(date) FROM expenses;")
+            oldest = (await cur.fetchone())[0]
+
+    return {
+        "total_users": total_users,
+        "total_expenses": total_expenses,
+        "users_no_tx": users_no_tx,
+        "oldest_tx": oldest.strftime("%Y-%m-%d") if oldest else None,
+    }
+
+
+async def delete_user_and_data(user_id: int) -> int:
+    """Delete user and all their data. Returns rows deleted."""
+    pool = get_pool()
+    async with pool.connection() as conn:
+        async with conn.cursor() as cur:
+            await cur.execute("DELETE FROM expenses WHERE user_id = %s;", (user_id,))
+            await cur.execute("DELETE FROM budgets WHERE user_id = %s;", (user_id,))
+            await cur.execute("DELETE FROM subscriptions WHERE user_id = %s;", (user_id,))
+            await cur.execute("DELETE FROM users WHERE telegram_id = %s;", (user_id,))
+        await conn.commit()
+    return user_id
+
+
+async def delete_user_expenses(user_id: int) -> int:
+    """Delete only expenses for a user."""
+    pool = get_pool()
+    async with pool.connection() as conn:
+        async with conn.cursor() as cur:
+            await cur.execute("DELETE FROM expenses WHERE user_id = %s;", (user_id,))
+            r = cur.rowcount
+        await conn.commit()
+    return r
+
+
+async def clean_old_expenses(months: int) -> int:
+    """Delete all expenses older than N months. Returns count deleted."""
+    pool = get_pool()
+    cutoff = date.today() - timedelta(days=months * 30)
+    async with pool.connection() as conn:
+        async with conn.cursor() as cur:
+            await cur.execute(
+                "DELETE FROM expenses WHERE date < %s;", (cutoff,)
+            )
+            count = cur.rowcount
+        await conn.commit()
+    return count
+
+
+async def delete_inactive_users(days: int) -> int:
+    """Delete users who have no transactions in last N days."""
+    pool = get_pool()
+    cutoff = date.today() - timedelta(days=days)
+    async with pool.connection() as conn:
+        async with conn.cursor() as cur:
+            # Find inactive user IDs
+            await cur.execute(
+                """SELECT telegram_id FROM users
+                   WHERE telegram_id NOT IN (
+                       SELECT DISTINCT user_id FROM expenses WHERE date >= %s
+                   );""",
+                (cutoff,),
+            )
+            inactive_ids = [r[0] for r in await cur.fetchall()]
+            if not inactive_ids:
+                return 0
+            for uid in inactive_ids:
+                await cur.execute("DELETE FROM expenses WHERE user_id = %s;", (uid,))
+                await cur.execute("DELETE FROM budgets WHERE user_id = %s;", (uid,))
+                await cur.execute("DELETE FROM subscriptions WHERE user_id = %s;", (uid,))
+                await cur.execute("DELETE FROM users WHERE telegram_id = %s;", (uid,))
+        await conn.commit()
+    return len(inactive_ids)
+
+
+async def clean_orphaned_data() -> dict:
+    """Remove subscriptions/budgets with no matching user."""
+    pool = get_pool()
+    async with pool.connection() as conn:
+        async with conn.cursor() as cur:
+            await cur.execute(
+                "DELETE FROM subscriptions WHERE user_id NOT IN (SELECT telegram_id FROM users);"
+            )
+            subs = cur.rowcount
+            await cur.execute(
+                "DELETE FROM budgets WHERE user_id NOT IN (SELECT telegram_id FROM users);"
+            )
+            budgets = cur.rowcount
+        await conn.commit()
+    return {"subscriptions": subs, "budgets": budgets}

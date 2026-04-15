@@ -1,0 +1,159 @@
+{% extends "base.html" %}
+{% block title %}تفاصيل {{ user.name }} — BotBudget{% endblock %}
+{% block content %}
+
+<!-- Header -->
+<div class="flex items-center gap-4 mb-6">
+    <a href="/users" class="text-gray-500 hover:text-gray-800 text-sm">← رجوع للمستخدمين</a>
+    <h2 class="text-3xl font-bold text-gray-800">👤 {{ user.name or "مستخدم" }}</h2>
+    {% if user.plan == 'premium' %}
+    <span class="bg-yellow-100 text-yellow-800 text-sm px-3 py-1 rounded-full font-semibold">🌟 مميز</span>
+    {% else %}
+    <span class="bg-gray-100 text-gray-700 text-sm px-3 py-1 rounded-full">مجاني</span>
+    {% endif %}
+</div>
+
+<!-- Info Cards -->
+<div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+    <div class="bg-white rounded-lg shadow p-4 text-center">
+        <p class="text-gray-500 text-sm">رقم المستخدم</p>
+        <p class="font-mono font-bold text-lg mt-1">{{ user.user_id }}</p>
+    </div>
+    <div class="bg-white rounded-lg shadow p-4 text-center">
+        <p class="text-gray-500 text-sm">تاريخ التسجيل</p>
+        <p class="font-bold text-lg mt-1">{{ user.created_at }}</p>
+    </div>
+    <div class="bg-white rounded-lg shadow p-4 text-center">
+        <p class="text-gray-500 text-sm">إجمالي المعاملات</p>
+        <p class="font-bold text-2xl text-blue-600 mt-1">{{ stats.tx_count }}</p>
+    </div>
+    <div class="bg-white rounded-lg shadow p-4 text-center">
+        <p class="text-gray-500 text-sm">إجمالي الإنفاق</p>
+        <p class="font-bold text-2xl text-green-600 mt-1">{{ "%.2f"|format(stats.total_spent) }}</p>
+    </div>
+</div>
+
+<!-- Actions -->
+<div class="bg-white rounded-lg shadow p-4 mb-6 flex gap-3 flex-wrap items-center">
+    <span class="font-semibold text-gray-700">إجراءات:</span>
+    {% if user.plan == 'premium' %}
+    <form method="post" action="/users/downgrade" class="inline">
+        <input type="hidden" name="user_id" value="{{ user.user_id }}">
+        <button class="bg-orange-100 text-orange-700 px-4 py-2 rounded hover:bg-orange-200 text-sm"
+                onclick="return confirm('إرجاع للخطة المجانية؟')">⬇️ تنزيل للمجاني</button>
+    </form>
+    {% else %}
+    <form method="post" action="/users/upgrade" class="inline flex gap-2 items-center">
+        <input type="hidden" name="user_id" value="{{ user.user_id }}">
+        <input type="number" name="days" value="30" min="1" max="365"
+               class="w-20 text-sm border rounded px-2 py-2">
+        <span class="text-sm text-gray-500">يوم</span>
+        <button class="bg-yellow-100 text-yellow-700 px-4 py-2 rounded hover:bg-yellow-200 text-sm">🌟 ترقية</button>
+    </form>
+    {% endif %}
+
+    <form method="post" action="/users/{{ user.user_id }}/delete-expenses" class="inline"
+          onsubmit="return confirm('حذف كل معاملات هذا المستخدم؟')">
+        <button class="bg-orange-100 text-orange-700 px-4 py-2 rounded hover:bg-orange-200 text-sm">🧹 حذف كل المعاملات</button>
+    </form>
+
+    <form method="post" action="/users/{{ user.user_id }}/delete" class="inline"
+          onsubmit="return confirm('حذف المستخدم وكل بياناته نهائياً؟ لا يمكن التراجع!')">
+        <button class="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700 text-sm">🗑️ حذف المستخدم نهائياً</button>
+    </form>
+</div>
+
+<div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+    <!-- Top Categories -->
+    <div class="bg-white rounded-lg shadow p-4">
+        <h3 class="font-bold text-gray-700 mb-3">📂 أكثر الفئات إنفاقاً</h3>
+        {% if categories %}
+        <div class="space-y-2">
+            {% set max_total = categories[0].total %}
+            {% for cat in categories %}
+            <div>
+                <div class="flex justify-between text-sm mb-1">
+                    <span>{{ cat.category or "بدون فئة" }}</span>
+                    <span class="text-gray-500">{{ "%.2f"|format(cat.total) }} ({{ cat.count }} معاملة)</span>
+                </div>
+                <div class="w-full bg-gray-100 rounded-full h-2">
+                    <div class="bg-blue-500 h-2 rounded-full"
+                         style="width: {{ (cat.total / max_total * 100)|int }}%"></div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <p class="text-gray-400 text-sm text-center py-4">لا توجد بيانات</p>
+        {% endif %}
+    </div>
+
+    <!-- Monthly Summary -->
+    <div class="bg-white rounded-lg shadow p-4">
+        <h3 class="font-bold text-gray-700 mb-3">📅 نشاط الأشهر الأخيرة</h3>
+        {% if monthly %}
+        <table class="w-full text-sm">
+            <thead>
+                <tr class="text-gray-500 border-b">
+                    <th class="pb-2 text-right">الشهر</th>
+                    <th class="pb-2 text-right">المعاملات</th>
+                    <th class="pb-2 text-right">الإجمالي</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for m in monthly %}
+                <tr class="border-b last:border-0">
+                    <td class="py-2">{{ m.month }}</td>
+                    <td class="py-2">{{ m.count }}</td>
+                    <td class="py-2 font-semibold">{{ "%.2f"|format(m.total) }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <p class="text-gray-400 text-sm text-center py-4">لا توجد بيانات</p>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Recent Transactions -->
+<div class="bg-white rounded-lg shadow overflow-hidden">
+    <div class="px-4 py-3 border-b flex justify-between items-center">
+        <h3 class="font-bold text-gray-700">💳 آخر المعاملات</h3>
+        <span class="text-sm text-gray-500">آخر 50 معاملة</span>
+    </div>
+    <table class="w-full text-right text-sm">
+        <thead class="bg-gray-50 text-gray-600">
+            <tr>
+                <th class="px-4 py-3">التاريخ</th>
+                <th class="px-4 py-3">الوصف</th>
+                <th class="px-4 py-3">الفئة</th>
+                <th class="px-4 py-3">النوع</th>
+                <th class="px-4 py-3">المبلغ</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for tx in transactions %}
+            <tr class="border-t hover:bg-gray-50">
+                <td class="px-4 py-3 text-gray-500">{{ tx.date }}</td>
+                <td class="px-4 py-3">{{ tx.description or "—" }}</td>
+                <td class="px-4 py-3">{{ tx.category or "—" }}</td>
+                <td class="px-4 py-3">
+                    {% if tx.type == 'income' %}
+                    <span class="text-green-600 font-semibold">دخل</span>
+                    {% else %}
+                    <span class="text-red-500">مصروف</span>
+                    {% endif %}
+                </td>
+                <td class="px-4 py-3 font-semibold {% if tx.type == 'income' %}text-green-600{% else %}text-red-500{% endif %}">
+                    {{ "%.2f"|format(tx.amount) }}
+                </td>
+            </tr>
+            {% else %}
+            <tr><td colspan="5" class="text-center py-8 text-gray-400">لا توجد معاملات</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+{% endblock %}
