@@ -70,6 +70,9 @@ class ChartService:
         if not categories:
             return None
 
+        currencies = await self.repo.get_currencies_in_range(user_id, start, end)
+        cur = currencies[0] if currencies else "EUR"
+
         labels = [c["category"] for c in categories]
         values = [c["total"] for c in categories]
         total = sum(values)
@@ -101,7 +104,7 @@ class ChartService:
             autotext.set_fontweight("bold")
 
         # Legend with reshaped Arabic
-        legend_labels = [f"€{v:.2f} :{_ar(l)}" for l, v in zip(labels, values)]
+        legend_labels = [f"{v:,.2f} {cur} :{_ar(l)}" for l, v in zip(labels, values)]
         ax.legend(
             wedges, legend_labels,
             loc="center left",
@@ -111,7 +114,7 @@ class ChartService:
         )
 
         ax.set_title(
-            _ar(f"توزيع المصاريف - {m}/{y}") + f"\n€{total:.2f} :" + _ar("الإجمالي"),
+            _ar(f"توزيع المصاريف - {m}/{y}") + f"\n{total:,.2f} {cur} :" + _ar("الإجمالي"),
             fontsize=14,
             fontweight="bold",
             pad=20,
@@ -141,6 +144,9 @@ class ChartService:
         expenses = await self.repo.get_by_date_range(user_id, week_start, today)
         if not expenses:
             return None
+
+        currencies = await self.repo.get_currencies_in_range(user_id, week_start, today)
+        cur = currencies[0] if currencies else "EUR"
 
         # Group by day
         daily = {}
@@ -172,16 +178,16 @@ class ChartService:
             if amount > 0:
                 ax.text(
                     bar.get_x() + bar.get_width() / 2, bar.get_height() + 0.5,
-                    f"€{amount:.0f}",
+                    f"{amount:,.0f}",
                     ha="center", va="bottom",
                     color="#e0e0e0", fontsize=10, fontweight="bold",
                 )
 
         ax.set_xticks(range(len(days)))
         ax.set_xticklabels(day_labels, fontsize=9, color="#e0e0e0")
-        ax.set_ylabel(_ar("المبلغ (€)"), fontsize=11, color="#e0e0e0")
+        ax.set_ylabel(_ar(f"المبلغ ({cur})"), fontsize=11, color="#e0e0e0")
         ax.set_title(
-            _ar("المصاريف اليومية - آخر ٧ أيام") + f"\n€{sum(amounts):.2f} :" + _ar("الإجمالي"),
+            _ar("المصاريف اليومية - آخر ٧ أيام") + f"\n{sum(amounts):,.2f} {cur} :" + _ar("الإجمالي"),
             fontsize=13, fontweight="bold", pad=15,
         )
 

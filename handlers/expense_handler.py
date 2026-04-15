@@ -168,27 +168,27 @@ async def handle_expense_callback(update: Update, context: ContextTypes.DEFAULT_
 @authorized_only
 @rate_limited
 async def today_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    await update.message.reply_text(await expense_service.get_today_summary(update.effective_user.id))
+    await update.message.reply_text(await expense_service.get_today_summary(update.effective_user.id), parse_mode="HTML")
 
 @authorized_only
 @rate_limited
 async def month_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    await update.message.reply_text(await expense_service.get_month_summary(update.effective_user.id))
+    await update.message.reply_text(await expense_service.get_month_summary(update.effective_user.id), parse_mode="HTML")
 
 @authorized_only
 @rate_limited
 async def week_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    await update.message.reply_text(await expense_service.get_week_summary(update.effective_user.id))
+    await update.message.reply_text(await expense_service.get_week_summary(update.effective_user.id), parse_mode="HTML")
 
 @authorized_only
 @rate_limited
 async def balance_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    await update.message.reply_text(await expense_service.get_balance(update.effective_user.id), parse_mode="Markdown")
+    await update.message.reply_text(await expense_service.get_balance(update.effective_user.id), parse_mode="HTML")
 
 @authorized_only
 @rate_limited
 async def last_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    await update.message.reply_text(await expense_service.get_last_expenses(update.effective_user.id))
+    await update.message.reply_text(await expense_service.get_last_expenses(update.effective_user.id), parse_mode="HTML")
 
 @authorized_only
 @rate_limited
@@ -200,20 +200,20 @@ async def undo_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
 async def search_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     if not context.args:
         await update.message.reply_text(
-            "🔍 *بحث في المعاملات*\n\n*الصيغة:* `/search <كلمة البحث>`\n*مثال:* `/search نتفليكس`",
-            parse_mode="Markdown",
+            "🔍 <b>بحث في المعاملات</b>\n\n<b>الصيغة:</b> /search &lt;كلمة البحث&gt;\n<b>مثال:</b> /search نتفليكس",
+            parse_mode="HTML",
         )
         return
     msg = await expense_service.search_transactions(update.effective_user.id, " ".join(context.args))
-    await update.message.reply_text(msg)
+    await update.message.reply_text(msg, parse_mode="HTML")
 
 @authorized_only
 @rate_limited
 async def report_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     if not context.args or len(context.args) < 2:
         await update.message.reply_text(
-            "📋 *تقرير مخصص*\n\n*الصيغة:* `/report <من> <إلى>`\n*مثال:* `/report 2026-01-01 2026-01-31`",
-            parse_mode="Markdown",
+            "📋 <b>تقرير مخصص</b>\n\n<b>الصيغة:</b> /report &lt;من&gt; &lt;إلى&gt;\n<b>مثال:</b> /report 2026-01-01 2026-01-31",
+            parse_mode="HTML",
         )
         return
     try:
@@ -222,7 +222,7 @@ async def report_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     except ValueError:
         await update.message.reply_text("⚠️ التاريخ لازم يكون بالصيغة: YYYY-MM-DD")
         return
-    await update.message.reply_text(await expense_service.get_date_range_report(update.effective_user.id, start, end))
+    await update.message.reply_text(await expense_service.get_date_range_report(update.effective_user.id, start, end), parse_mode="HTML")
 
 
 # ══════════════════════════════════════════════════════════
@@ -297,7 +297,7 @@ async def category_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -
     """Show category grid or direct result if arg provided."""
     if context.args:
         msg = await expense_service.get_category_details(update.effective_user.id, context.args[0])
-        await update.message.reply_text(msg)
+        await update.message.reply_text(msg, parse_mode="HTML")
         return
 
     await update.message.reply_text(
@@ -312,7 +312,7 @@ async def handle_category_show(update: Update, context: ContextTypes.DEFAULT_TYP
     await query.answer()
     category = query.data[8:]  # remove "catshow_"
     msg = await expense_service.get_category_details(update.effective_user.id, category)
-    await query.edit_message_text(msg)
+    await query.edit_message_text(msg, parse_mode="HTML")
 
 
 async def handle_cancel_generic(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -516,7 +516,7 @@ async def compare_m2_selected(update: Update, context: ContextTypes.DEFAULT_TYPE
 
     await query.edit_message_text("⏳ جاري المقارنة...")
     msg = await expense_service.compare_months(update.effective_user.id, m1, y1, int(parts[0]), int(parts[1]))
-    await query.edit_message_text(msg)
+    await query.edit_message_text(msg, parse_mode="HTML")
     return ConversationHandler.END
 
 
