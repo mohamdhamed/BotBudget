@@ -117,7 +117,7 @@ class InsightsService:
 
                 # 6) Budget warnings
                 await cur.execute(
-                    """SELECT b.category, b.amount as budget,
+                    """SELECT b.category, b.limit_amount as budget,
                               COALESCE(SUM(e.amount), 0) as spent
                        FROM budgets b
                        LEFT JOIN expenses e
@@ -126,7 +126,7 @@ class InsightsService:
                          AND e.type = 'expense'
                          AND e.date BETWEEN %s AND %s
                        WHERE b.user_id = %s
-                       GROUP BY b.category, b.amount""",
+                       GROUP BY b.category, b.limit_amount""",
                     (first, last, user_id),
                 )
                 budget_warnings = []
