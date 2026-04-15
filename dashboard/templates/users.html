@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+{% block title %}المستخدمون — BotBudget{% endblock %}
+{% block content %}
+<div class="flex justify-between items-center mb-6">
+    <h2 class="text-3xl font-bold text-gray-800">👥 إدارة المستخدمين</h2>
+    <form method="get" action="/users" class="flex gap-2">
+        <input type="text" name="search" value="{{ search }}" placeholder="بحث بالاسم أو ID..."
+               class="px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none">
+        <button class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700">🔍 بحث</button>
+    </form>
+</div>
+
+<div class="bg-white rounded-lg shadow overflow-hidden">
+    <table class="w-full text-right">
+        <thead class="bg-gray-50 text-gray-600 text-sm">
+            <tr>
+                <th class="px-4 py-3">الاسم</th>
+                <th class="px-4 py-3">ID</th>
+                <th class="px-4 py-3">الخطة</th>
+                <th class="px-4 py-3">ينتهي في</th>
+                <th class="px-4 py-3">عدد المعاملات</th>
+                <th class="px-4 py-3">تاريخ التسجيل</th>
+                <th class="px-4 py-3">إجراءات</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for u in users %}
+            <tr class="border-t hover:bg-gray-50">
+                <td class="px-4 py-3 font-semibold">{{ u.name or "—" }}</td>
+                <td class="px-4 py-3 text-gray-500 font-mono text-sm">{{ u.user_id }}</td>
+                <td class="px-4 py-3">
+                    {% if u.plan == 'premium' %}
+                    <span class="bg-yellow-100 text-yellow-800 text-xs px-2 py-1 rounded-full font-semibold">🌟 مميز</span>
+                    {% else %}
+                    <span class="bg-gray-100 text-gray-700 text-xs px-2 py-1 rounded-full">مجاني</span>
+                    {% endif %}
+                </td>
+                <td class="px-4 py-3 text-sm">{{ u.expires_at or "—" }}</td>
+                <td class="px-4 py-3">{{ u.tx_count }}</td>
+                <td class="px-4 py-3 text-sm text-gray-500">{{ u.created_at }}</td>
+                <td class="px-4 py-3">
+                    <div class="flex gap-1">
+                        {% if u.plan == 'premium' %}
+                        <form method="post" action="/users/downgrade" class="inline">
+                            <input type="hidden" name="user_id" value="{{ u.user_id }}">
+                            <button class="text-xs bg-red-100 text-red-700 px-2 py-1 rounded hover:bg-red-200"
+                                    onclick="return confirm('إرجاع للخطة المجانية؟')">⬇️ تنزيل</button>
+                        </form>
+                        {% else %}
+                        <form method="post" action="/users/upgrade" class="inline flex gap-1">
+                            <input type="hidden" name="user_id" value="{{ u.user_id }}">
+                            <input type="number" name="days" value="30" min="1" max="365"
+                                   class="w-14 text-xs border rounded px-1">
+                            <button class="text-xs bg-yellow-100 text-yellow-700 px-2 py-1 rounded hover:bg-yellow-200">
+                                🌟 ترقية
+                            </button>
+                        </form>
+                        {% endif %}
+                    </div>
+                </td>
+            </tr>
+            {% else %}
+            <tr><td colspan="7" class="text-center py-8 text-gray-500">مفيش مستخدمين</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<p class="text-sm text-gray-500 mt-4 text-center">عدد المستخدمين: {{ users|length }}</p>
+{% endblock %}

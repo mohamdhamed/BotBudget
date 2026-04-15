@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+{% block title %}المشتركون — BotBudget{% endblock %}
+{% block content %}
+<h2 class="text-3xl font-bold mb-6 text-gray-800">🌟 المشتركون المميزون</h2>
+
+{% if expiring %}
+<div class="bg-yellow-50 border-r-4 border-yellow-400 p-4 mb-6 rounded">
+    <div class="font-semibold text-yellow-800 mb-2">⚠️ اشتراكات على وشك الانتهاء ({{ expiring|length }})</div>
+    <ul class="text-sm text-yellow-700">
+        {% for s in expiring %}
+        <li>• {{ s.name }} (ID: {{ s.user_id }}) — باقي {{ s.days_left }} يوم</li>
+        {% endfor %}
+    </ul>
+</div>
+{% endif %}
+
+<div class="bg-white rounded-lg shadow overflow-hidden">
+    <table class="w-full text-right">
+        <thead class="bg-gray-50 text-gray-600 text-sm">
+            <tr>
+                <th class="px-4 py-3">الاسم</th>
+                <th class="px-4 py-3">ID</th>
+                <th class="px-4 py-3">بدأ في</th>
+                <th class="px-4 py-3">ينتهي في</th>
+                <th class="px-4 py-3">الأيام المتبقية</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for s in subscribers %}
+            <tr class="border-t hover:bg-gray-50">
+                <td class="px-4 py-3 font-semibold">{{ s.name }}</td>
+                <td class="px-4 py-3 text-gray-500 font-mono text-sm">{{ s.user_id }}</td>
+                <td class="px-4 py-3 text-sm">{{ s.started_at }}</td>
+                <td class="px-4 py-3 text-sm">{{ s.expires_at }}</td>
+                <td class="px-4 py-3">
+                    {% if s.days_left is none %}
+                    <span class="text-gray-400">—</span>
+                    {% elif s.days_left < 0 %}
+                    <span class="text-red-600 font-semibold">منتهي</span>
+                    {% elif s.days_left <= 7 %}
+                    <span class="text-yellow-600 font-semibold">{{ s.days_left }} يوم</span>
+                    {% else %}
+                    <span class="text-green-600">{{ s.days_left }} يوم</span>
+                    {% endif %}
+                </td>
+            </tr>
+            {% else %}
+            <tr><td colspan="5" class="text-center py-8 text-gray-500">مفيش مشتركين مميزين بعد</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

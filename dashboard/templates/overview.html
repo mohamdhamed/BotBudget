@@ -1,0 +1,102 @@
+{% extends "base.html" %}
+{% block title %}نظرة عامة — BotBudget{% endblock %}
+{% block content %}
+<h2 class="text-3xl font-bold mb-6 text-gray-800">📊 نظرة عامة</h2>
+
+<!-- Stat cards -->
+<div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+    <div class="bg-white rounded-lg shadow p-6">
+        <div class="text-gray-500 text-sm">إجمالي المستخدمين</div>
+        <div class="text-3xl font-bold text-gray-800 mt-2">{{ stats.total_users }}</div>
+        <div class="text-xs text-green-600 mt-1">+{{ stats.new_users_7d }} خلال آخر ٧ أيام</div>
+    </div>
+    <div class="bg-white rounded-lg shadow p-6">
+        <div class="text-gray-500 text-sm">المشتركون المميزون</div>
+        <div class="text-3xl font-bold text-yellow-500 mt-2">🌟 {{ stats.premium }}</div>
+        <div class="text-xs text-gray-500 mt-1">{{ stats.free }} مستخدم مجاني</div>
+    </div>
+    <div class="bg-white rounded-lg shadow p-6">
+        <div class="text-gray-500 text-sm">معاملات اليوم</div>
+        <div class="text-3xl font-bold text-blue-600 mt-2">{{ stats.tx_today }}</div>
+        <div class="text-xs text-gray-500 mt-1">{{ "%.2f"|format(stats.sum_today) }} اليوم</div>
+    </div>
+    <div class="bg-white rounded-lg shadow p-6">
+        <div class="text-gray-500 text-sm">معاملات الشهر</div>
+        <div class="text-3xl font-bold text-purple-600 mt-2">{{ stats.tx_month }}</div>
+        <div class="text-xs text-gray-500 mt-1">{{ "%.2f"|format(stats.sum_month) }} الشهر</div>
+    </div>
+</div>
+
+<div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+    <!-- User growth -->
+    <div class="bg-white rounded-lg shadow p-6">
+        <h3 class="text-lg font-bold mb-4">📈 نمو المستخدمين (آخر ٣٠ يوم)</h3>
+        <canvas id="growthChart" height="200"></canvas>
+    </div>
+
+    <!-- Daily activity -->
+    <div class="bg-white rounded-lg shadow p-6">
+        <h3 class="text-lg font-bold mb-4">🔥 النشاط اليومي (معاملات)</h3>
+        <canvas id="activityChart" height="200"></canvas>
+    </div>
+</div>
+
+<!-- Top categories -->
+<div class="bg-white rounded-lg shadow p-6">
+    <h3 class="text-lg font-bold mb-4">🏷️ أكثر الفئات استخداماً (آخر ٣٠ يوم)</h3>
+    <table class="w-full text-right">
+        <thead class="bg-gray-50 text-gray-600 text-sm">
+            <tr>
+                <th class="px-4 py-2">#</th>
+                <th class="px-4 py-2">الفئة</th>
+                <th class="px-4 py-2">عدد المعاملات</th>
+                <th class="px-4 py-2">الإجمالي</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for c in top_cats %}
+            <tr class="border-t">
+                <td class="px-4 py-3 text-gray-400">{{ loop.index }}</td>
+                <td class="px-4 py-3 font-semibold">{{ c.category }}</td>
+                <td class="px-4 py-3">{{ c.count }}</td>
+                <td class="px-4 py-3 text-blue-600">{{ "%.2f"|format(c.total) }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<script>
+const growthData = {{ growth | tojson }};
+const activityData = {{ activity | tojson }};
+
+new Chart(document.getElementById('growthChart'), {
+    type: 'line',
+    data: {
+        labels: growthData.map(d => d.date.slice(5)),
+        datasets: [{
+            label: 'مستخدمون جدد',
+            data: growthData.map(d => d.count),
+            borderColor: '#3b82f6',
+            backgroundColor: 'rgba(59, 130, 246, 0.1)',
+            fill: true,
+            tension: 0.3,
+        }]
+    },
+    options: { responsive: true, plugins: { legend: { display: false } } }
+});
+
+new Chart(document.getElementById('activityChart'), {
+    type: 'bar',
+    data: {
+        labels: activityData.map(d => d.date.slice(5)),
+        datasets: [{
+            label: 'عدد المعاملات',
+            data: activityData.map(d => d.count),
+            backgroundColor: '#8b5cf6',
+        }]
+    },
+    options: { responsive: true, plugins: { legend: { display: false } } }
+});
+</script>
+{% endblock %}

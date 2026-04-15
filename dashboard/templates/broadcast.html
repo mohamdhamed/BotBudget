@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% block title %}رسالة جماعية — BotBudget{% endblock %}
+{% block content %}
+<h2 class="text-3xl font-bold mb-6 text-gray-800">📢 رسالة جماعية</h2>
+
+{% if result %}
+<div class="bg-green-50 border-r-4 border-green-400 p-4 mb-6 rounded">
+    <div class="font-semibold text-green-800">✅ تم الإرسال</div>
+    <div class="text-sm text-green-700 mt-1">
+        الجمهور: {{ "المميزون فقط" if result.target == "premium" else "كل المستخدمين" }}
+        — نجح: <b>{{ result.sent }}</b> — فشل: <b>{{ result.failed }}</b>
+    </div>
+</div>
+{% endif %}
+
+<div class="bg-white rounded-lg shadow p-6 max-w-2xl">
+    <form method="post" action="/broadcast" class="space-y-4">
+        <div>
+            <label class="block text-gray-700 font-semibold mb-2">الجمهور</label>
+            <div class="flex gap-4">
+                <label class="flex items-center gap-2 border rounded-lg px-4 py-2 cursor-pointer hover:bg-gray-50">
+                    <input type="radio" name="target" value="all" checked>
+                    <span>كل المستخدمين ({{ all_count }})</span>
+                </label>
+                <label class="flex items-center gap-2 border rounded-lg px-4 py-2 cursor-pointer hover:bg-gray-50">
+                    <input type="radio" name="target" value="premium">
+                    <span>🌟 المميزون فقط ({{ premium_count }})</span>
+                </label>
+            </div>
+        </div>
+
+        <div>
+            <label class="block text-gray-700 font-semibold mb-2">الرسالة</label>
+            <textarea name="message" rows="8" required
+                      placeholder="اكتب الرسالة هنا... يدعم HTML: <b>عريض</b>, <i>مائل</i>, <a href='...'>رابط</a>"
+                      class="w-full border rounded-lg p-3 focus:ring-2 focus:ring-blue-500 focus:outline-none font-mono text-sm"></textarea>
+            <p class="text-xs text-gray-500 mt-1">يدعم HTML: &lt;b&gt;, &lt;i&gt;, &lt;a&gt;, &lt;code&gt;</p>
+        </div>
+
+        <div class="bg-yellow-50 border border-yellow-300 rounded-lg p-3 text-sm text-yellow-800">
+            ⚠️ انتبه: الرسالة هتبعت فوراً لكل المستخدمين المختارين. الإرسال مش قابل للإلغاء.
+        </div>
+
+        <button type="submit"
+                onclick="return confirm('متأكد من الإرسال؟')"
+                class="bg-blue-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-blue-700">
+            📤 إرسال للجميع
+        </button>
+    </form>
+</div>
+{% endblock %}
