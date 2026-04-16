@@ -8,7 +8,11 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&display=swap" rel="stylesheet">
     <style>
-        body { font-family: 'Cairo', sans-serif; }
+        * { scroll-behavior: smooth; }
+        body {
+            font-family: 'Cairo', sans-serif;
+            overflow-x: hidden;
+        }
 
         .gradient-hero {
             background: linear-gradient(135deg, #0f172a 0%, #1e3a5f 50%, #0f172a 100%);
@@ -19,30 +23,98 @@
             -webkit-text-fill-color: transparent;
             background-clip: text;
         }
-        .card-glow:hover {
-            box-shadow: 0 0 30px rgba(96, 165, 250, 0.15);
-            transform: translateY(-4px);
-            transition: all 0.3s ease;
-        }
+
+        /* Cards */
         .card-glow {
-            transition: all 0.3s ease;
+            transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
         }
+        .card-glow:hover {
+            box-shadow: 0 20px 40px rgba(30, 58, 95, 0.12), 0 0 30px rgba(96, 165, 250, 0.15);
+            transform: translateY(-8px);
+            border-color: #93c5fd !important;
+        }
+
+        /* Telegram button */
         .btn-telegram {
             background: linear-gradient(135deg, #2AABEE, #229ED9);
-            transition: all 0.3s ease;
+            transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+            position: relative;
+            overflow: hidden;
+        }
+        .btn-telegram::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
+            transition: left 0.6s ease;
+        }
+        .btn-telegram:hover::before {
+            left: 100%;
         }
         .btn-telegram:hover {
             background: linear-gradient(135deg, #229ED9, #1a8fc4);
-            transform: translateY(-2px);
-            box-shadow: 0 8px 25px rgba(42, 171, 238, 0.4);
+            transform: translateY(-3px) scale(1.02);
+            box-shadow: 0 12px 30px rgba(42, 171, 238, 0.5);
         }
+
+        /* Floating animation */
         .floating {
-            animation: float 3s ease-in-out infinite;
+            animation: float 4s ease-in-out infinite;
         }
         @keyframes float {
             0%, 100% { transform: translateY(0px); }
-            50% { transform: translateY(-10px); }
+            50% { transform: translateY(-12px); }
         }
+
+        /* Pulse for dot */
+        .pulse-dot {
+            animation: pulse 2s ease-in-out infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.6; transform: scale(1.2); }
+        }
+
+        /* Fade-in on scroll */
+        .reveal {
+            opacity: 0;
+            transform: translateY(40px);
+            transition: all 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        .reveal.active {
+            opacity: 1;
+            transform: translateY(0);
+        }
+        .reveal-delay-1 { transition-delay: 0.1s; }
+        .reveal-delay-2 { transition-delay: 0.2s; }
+        .reveal-delay-3 { transition-delay: 0.3s; }
+
+        /* Hero fade-in */
+        .hero-fade {
+            animation: heroFade 1s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        @keyframes heroFade {
+            from { opacity: 0; transform: translateY(30px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Chat message slide-in */
+        .chat-msg {
+            opacity: 0;
+            animation: slideIn 0.5s ease-out forwards;
+        }
+        .chat-msg:nth-child(1) { animation-delay: 0.8s; }
+        .chat-msg:nth-child(2) { animation-delay: 1.3s; }
+        .chat-msg:nth-child(3) { animation-delay: 1.9s; }
+        .chat-msg:nth-child(4) { animation-delay: 2.4s; }
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
         .section-alt {
             background: #f8fafc;
         }
@@ -50,7 +122,13 @@
             background: linear-gradient(135deg, #1e3a5f, #1e40af);
             color: white;
             transform: scale(1.05);
+            transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
         }
+        .pricing-popular:hover {
+            transform: scale(1.08) translateY(-8px);
+            box-shadow: 0 25px 50px rgba(30, 64, 175, 0.35);
+        }
+
         .chat-bubble-right {
             background: #2AABEE;
             color: white;
@@ -69,6 +147,59 @@
             -webkit-text-fill-color: transparent;
             background-clip: text;
         }
+
+        /* Step numbers */
+        .step-circle {
+            transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        .step-circle:hover {
+            transform: scale(1.1) rotate(5deg);
+            box-shadow: 0 15px 30px rgba(37, 99, 235, 0.4);
+        }
+
+        /* Links hover underline */
+        .nav-link {
+            position: relative;
+            transition: color 0.3s ease;
+        }
+        .nav-link::after {
+            content: '';
+            position: absolute;
+            bottom: -4px;
+            right: 0;
+            width: 0;
+            height: 2px;
+            background: #60a5fa;
+            transition: width 0.3s ease;
+        }
+        .nav-link:hover::after {
+            width: 100%;
+        }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar { width: 10px; }
+        ::-webkit-scrollbar-track { background: #f1f5f9; }
+        ::-webkit-scrollbar-thumb {
+            background: linear-gradient(180deg, #60a5fa, #3b82f6);
+            border-radius: 5px;
+        }
+
+        /* Feature icons */
+        .feature-icon {
+            transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+            display: inline-block;
+        }
+        .card-glow:hover .feature-icon {
+            transform: scale(1.2) rotate(-5deg);
+        }
+
+        /* Blob animation */
+        @keyframes blob {
+            0%, 100% { transform: translate(0, 0) scale(1); }
+            33% { transform: translate(30px, -50px) scale(1.1); }
+            66% { transform: translate(-20px, 20px) scale(0.9); }
+        }
+        .blob { animation: blob 12s infinite ease-in-out; }
     </style>
 </head>
 <body class="bg-white text-gray-800">
@@ -81,9 +212,9 @@
                 <span class="text-white font-bold text-xl">BotBudget</span>
             </div>
             <div class="hidden md:flex items-center gap-8 text-gray-300 text-sm">
-                <a href="#features" class="hover:text-white transition">المميزات</a>
-                <a href="#how-it-works" class="hover:text-white transition">كيف يعمل؟</a>
-                <a href="#pricing" class="hover:text-white transition">الأسعار</a>
+                <a href="#features" class="nav-link hover:text-white">المميزات</a>
+                <a href="#how-it-works" class="nav-link hover:text-white">كيف يعمل؟</a>
+                <a href="#pricing" class="nav-link hover:text-white">الأسعار</a>
             </div>
             <a href="https://t.me/Mybudgettracke_bot" target="_blank"
                class="btn-telegram text-white font-bold px-5 py-2 rounded-full text-sm flex items-center gap-2">
@@ -98,14 +229,15 @@
     <!-- ═══════════════════════════════ HERO ═══════════════════════════════ -->
     <section class="gradient-hero text-white py-24 px-6 overflow-hidden relative">
         <!-- Background decoration -->
-        <div class="absolute inset-0 overflow-hidden opacity-10">
-            <div class="absolute top-20 left-10 w-72 h-72 bg-blue-500 rounded-full blur-3xl"></div>
-            <div class="absolute bottom-10 right-10 w-96 h-96 bg-green-500 rounded-full blur-3xl"></div>
+        <div class="absolute inset-0 overflow-hidden opacity-20">
+            <div class="blob absolute top-20 left-10 w-72 h-72 bg-blue-500 rounded-full blur-3xl"></div>
+            <div class="blob absolute bottom-10 right-10 w-96 h-96 bg-green-500 rounded-full blur-3xl" style="animation-delay: 4s;"></div>
+            <div class="blob absolute top-1/2 left-1/2 w-80 h-80 bg-purple-500 rounded-full blur-3xl" style="animation-delay: 8s;"></div>
         </div>
 
         <div class="max-w-6xl mx-auto grid md:grid-cols-2 gap-12 items-center relative z-10">
             <!-- Text -->
-            <div>
+            <div class="hero-fade">
                 <div class="inline-block bg-blue-500/20 border border-blue-500/30 text-blue-300 text-sm px-4 py-1 rounded-full mb-6">
                     🚀 متاح الآن على تليجرام
                 </div>
@@ -141,25 +273,27 @@
                         <div class="w-10 h-10 bg-blue-500 rounded-full flex items-center justify-center text-lg">💰</div>
                         <div>
                             <p class="text-white font-bold text-sm">BotBudget</p>
-                            <p class="text-green-400 text-xs">● متصل الآن</p>
+                            <p class="text-green-400 text-xs flex items-center gap-1">
+                                <span class="pulse-dot">●</span> متصل الآن
+                            </p>
                         </div>
                     </div>
                     <!-- Messages -->
                     <div class="space-y-3 text-sm">
-                        <div class="flex justify-end">
+                        <div class="chat-msg flex justify-end">
                             <div class="chat-bubble-right px-4 py-2 max-w-xs">قهوة ١٥ جنيه</div>
                         </div>
-                        <div class="flex justify-start">
+                        <div class="chat-msg flex justify-start">
                             <div class="chat-bubble-left px-4 py-2 max-w-xs">
                                 ✅ تم التسجيل!<br>
                                 ☕ قهوة — <span class="text-blue-400">١٥ ج.م</span><br>
                                 📂 فئة: مأكل ومشرب
                             </div>
                         </div>
-                        <div class="flex justify-end">
+                        <div class="chat-msg flex justify-end">
                             <div class="chat-bubble-right px-4 py-2 max-w-xs">تقرير النهارده</div>
                         </div>
-                        <div class="flex justify-start">
+                        <div class="chat-msg flex justify-start">
                             <div class="chat-bubble-left px-4 py-2 max-w-xs">
                                 📊 <span class="text-green-400 font-bold">اليوم أنفقت ٨٥ ج.م</span><br>
                                 🍕 أكل: ٥٠ج | ☕ مشروبات: ١٥ج<br>
@@ -209,8 +343,8 @@
 
             <div class="grid md:grid-cols-3 gap-8">
                 <!-- Feature 1 -->
-                <div class="card-glow bg-white border border-gray-100 rounded-2xl p-8 shadow-sm">
-                    <div class="text-4xl mb-4">🤖</div>
+                <div class="reveal card-glow bg-white border border-gray-100 rounded-2xl p-8 shadow-sm">
+                    <div class="feature-icon text-4xl mb-4">🤖</div>
                     <h3 class="font-bold text-xl mb-3 text-gray-900">ذكاء اصطناعي بالعربي</h3>
                     <p class="text-gray-500 leading-relaxed">
                         ابعت "أكل ٥٠ جنيه" أو "spent 20 on coffee" — البوت بيفهم ويصنّف تلقائياً بدون أي تعقيد.
@@ -218,8 +352,8 @@
                 </div>
 
                 <!-- Feature 2 -->
-                <div class="card-glow bg-white border border-gray-100 rounded-2xl p-8 shadow-sm">
-                    <div class="text-4xl mb-4">📊</div>
+                <div class="reveal card-glow bg-white border border-gray-100 rounded-2xl p-8 shadow-sm">
+                    <div class="feature-icon text-4xl mb-4">📊</div>
                     <h3 class="font-bold text-xl mb-3 text-gray-900">تقارير ذكية</h3>
                     <p class="text-gray-500 leading-relaxed">
                         تقارير يومية، أسبوعية، وشهرية. رسوم بيانية واضحة. تصدير Excel و CSV لما تحتاجه.
@@ -227,8 +361,8 @@
                 </div>
 
                 <!-- Feature 3 -->
-                <div class="card-glow bg-white border border-gray-100 rounded-2xl p-8 shadow-sm">
-                    <div class="text-4xl mb-4">🔔</div>
+                <div class="reveal card-glow bg-white border border-gray-100 rounded-2xl p-8 shadow-sm">
+                    <div class="feature-icon text-4xl mb-4">🔔</div>
                     <h3 class="font-bold text-xl mb-3 text-gray-900">تنبيهات الميزانية</h3>
                     <p class="text-gray-500 leading-relaxed">
                         حدّد ميزانيتك الشهرية واستلم تنبيه فوري لو اقتربت من الحد أو تجاوزته.
@@ -236,8 +370,8 @@
                 </div>
 
                 <!-- Feature 4 -->
-                <div class="card-glow bg-white border border-gray-100 rounded-2xl p-8 shadow-sm">
-                    <div class="text-4xl mb-4">🔄</div>
+                <div class="reveal card-glow bg-white border border-gray-100 rounded-2xl p-8 shadow-sm">
+                    <div class="feature-icon text-4xl mb-4">🔄</div>
                     <h3 class="font-bold text-xl mb-3 text-gray-900">مدفوعات متكررة</h3>
                     <p class="text-gray-500 leading-relaxed">
                         سجّل اشتراكاتك الشهرية (Netflix، جيم، إيجار) واستلم تذكير قبل موعد الدفع.
@@ -245,8 +379,8 @@
                 </div>
 
                 <!-- Feature 5 -->
-                <div class="card-glow bg-white border border-gray-100 rounded-2xl p-8 shadow-sm">
-                    <div class="text-4xl mb-4">📈</div>
+                <div class="reveal card-glow bg-white border border-gray-100 rounded-2xl p-8 shadow-sm">
+                    <div class="feature-icon text-4xl mb-4">📈</div>
                     <h3 class="font-bold text-xl mb-3 text-gray-900">مقارنة الأشهر</h3>
                     <p class="text-gray-500 leading-relaxed">
                         شوف إنفاقك ازداد ولا قلّ مقارنة بالشهر اللي فات. افهم عاداتك المالية بشكل أعمق.
@@ -254,8 +388,8 @@
                 </div>
 
                 <!-- Feature 6 -->
-                <div class="card-glow bg-white border border-gray-100 rounded-2xl p-8 shadow-sm">
-                    <div class="text-4xl mb-4">🔒</div>
+                <div class="reveal card-glow bg-white border border-gray-100 rounded-2xl p-8 shadow-sm">
+                    <div class="feature-icon text-4xl mb-4">🔒</div>
                     <h3 class="font-bold text-xl mb-3 text-gray-900">خصوصية تامة</h3>
                     <p class="text-gray-500 leading-relaxed">
                         بياناتك محفوظة بأمان. لا أحد يشوف مصاريفك — ده حسابك الشخصي بس.
@@ -277,20 +411,20 @@
 
             <div class="grid md:grid-cols-3 gap-8 text-center">
                 <div class="relative">
-                    <div class="w-16 h-16 bg-blue-600 text-white text-2xl font-extrabold rounded-full flex items-center justify-center mx-auto mb-6 shadow-lg">١</div>
+                    <div class="step-circle w-16 h-16 bg-blue-600 text-white text-2xl font-extrabold rounded-full flex items-center justify-center mx-auto mb-6 shadow-lg">١</div>
                     <h3 class="font-bold text-xl mb-3">افتح البوت</h3>
                     <p class="text-gray-500">دوّر على @BotBudget على تليجرام واضغط Start</p>
                 </div>
                 <div class="relative">
                     <!-- connector line -->
                     <div class="hidden md:block absolute top-8 right-full w-full h-0.5 bg-gray-200 -translate-y-0.5"></div>
-                    <div class="w-16 h-16 bg-blue-600 text-white text-2xl font-extrabold rounded-full flex items-center justify-center mx-auto mb-6 shadow-lg">٢</div>
+                    <div class="step-circle w-16 h-16 bg-blue-600 text-white text-2xl font-extrabold rounded-full flex items-center justify-center mx-auto mb-6 shadow-lg">٢</div>
                     <h3 class="font-bold text-xl mb-3">ابعت مصروفك</h3>
                     <p class="text-gray-500">كتابة حرة بالعربي أو الإنجليزي — البوت يفهم</p>
                 </div>
                 <div class="relative">
                     <div class="hidden md:block absolute top-8 right-full w-full h-0.5 bg-gray-200 -translate-y-0.5"></div>
-                    <div class="w-16 h-16 bg-blue-600 text-white text-2xl font-extrabold rounded-full flex items-center justify-center mx-auto mb-6 shadow-lg">٣</div>
+                    <div class="step-circle w-16 h-16 bg-blue-600 text-white text-2xl font-extrabold rounded-full flex items-center justify-center mx-auto mb-6 shadow-lg">٣</div>
                     <h3 class="font-bold text-xl mb-3">شوف تقاريرك</h3>
                     <p class="text-gray-500">تقارير لحظية، رسوم بيانية، وتنبيهات ذكية</p>
                 </div>
@@ -398,6 +532,41 @@
             <p class="text-xs text-gray-600">© 2026 BotBudget. جميع الحقوق محفوظة.</p>
         </div>
     </footer>
+
+    <script>
+        // Fade-in on scroll
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    entry.target.classList.add('active');
+                    observer.unobserve(entry.target);
+                }
+            });
+        }, { threshold: 0.15, rootMargin: '0px 0px -50px 0px' });
+
+        document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
+
+        // Smooth scroll for anchor links
+        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+            anchor.addEventListener('click', function (e) {
+                e.preventDefault();
+                const target = document.querySelector(this.getAttribute('href'));
+                if (target) {
+                    target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }
+            });
+        });
+
+        // Navbar shadow on scroll
+        const nav = document.querySelector('nav');
+        window.addEventListener('scroll', () => {
+            if (window.scrollY > 50) {
+                nav.classList.add('shadow-2xl');
+            } else {
+                nav.classList.remove('shadow-2xl');
+            }
+        });
+    </script>
 
 </body>
 </html>
