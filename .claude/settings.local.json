@@ -1,0 +1,28 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(wc -l /d/BotBudget/tests/**/*.py)",
+      "Bash(python -m pytest tests/ -v --tb=short)",
+      "Bash(python -m pytest tests/services/test_expense_service.py::test_get_today_summary tests/services/test_expense_service.py::test_get_balance tests/unit/handlers/test_expense_handler.py::test_handle_text_message_add_expense -v --tb=short)",
+      "Bash(python -m pytest tests/unit/handlers/test_expense_handler.py::test_handle_text_message_add_expense tests/unit/handlers/test_expense_handler.py::test_handle_text_message_budget_alert tests/services/test_expense_service.py::test_add_from_text_success tests/services/test_expense_service.py::test_get_week_summary tests/ai/ tests/models/ -v --tb=short)",
+      "Bash(python -m pytest tests/unit/handlers/test_expense_handler.py::test_handle_text_message_add_expense tests/unit/handlers/test_expense_handler.py::test_handle_text_message_budget_alert -v --tb=short)",
+      "Bash(python -m pytest tests/ -v --tb=line)",
+      "Bash(python -m pytest tests/unit/security/test_rate_limiter.py -v --tb=short)",
+      "Bash(python -m pytest tests/unit/security/ tests/ai/ tests/models/ tests/services/test_expense_service.py::test_add_from_text_success tests/services/test_expense_service.py::test_get_week_summary tests/unit/handlers/test_expense_handler.py::test_handle_text_message_add_expense tests/unit/handlers/test_expense_handler.py::test_handle_text_message_budget_alert -v --tb=short)",
+      "Bash(python -m pytest tests/unit/security/ tests/ai/ tests/models/ tests/services/test_expense_service.py::test_add_from_text_success tests/services/test_expense_service.py::test_get_week_summary tests/unit/handlers/test_expense_handler.py::test_handle_text_message_add_expense tests/unit/handlers/test_expense_handler.py::test_handle_text_message_budget_alert -v)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git push:*)",
+      "Bash(cd /d D:BotBudget)",
+      "Bash(python -c \"from handlers.expense_handler import handle_text_message; print\\(''OK''\\)\")",
+      "Bash(python -m pytest tests/ai/ tests/models/ tests/unit/security/ tests/services/test_expense_service.py::test_add_from_text_success tests/unit/handlers/test_expense_handler.py::test_handle_text_message_add_expense -v --tb=short)",
+      "Bash(python -m pytest tests/unit/security/test_auth.py::test_authorized_user_allowed -v --tb=short)",
+      "Bash(python -m pytest tests/ai/ tests/models/ tests/unit/security/ tests/unit/handlers/test_expense_handler.py::test_handle_text_message_add_expense tests/unit/handlers/test_expense_handler.py::test_handle_text_message_budget_alert tests/services/test_expense_service.py::test_add_from_text_success -v --tb=short)",
+      "Bash(find /d/BotBudget/alembic -type f -name *.py)",
+      "Bash(grep -l \"recurring\" /d/BotBudget/alembic/versions/*.py)",
+      "mcp__0e7ec605-1c6d-4bc9-8e37-5f925d172f2a__documents_create",
+      "Bash(python -c \"from dashboard import main\")",
+      "Bash(grep -n \"budgets\\\\|budget\" D:/BotBudget/alembic/versions/*.py)"
+    ]
+  }
+}

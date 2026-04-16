@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BotBudget — تتبع مصاريفك بذكاء</title>
+    <meta name="description" content="بوت تليجرام ذكي لتتبع المصاريف وإدارة الميزانية بالعربي. مجاناً للبدء!">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Cairo', sans-serif; }
+
+        .gradient-hero {
+            background: linear-gradient(135deg, #0f172a 0%, #1e3a5f 50%, #0f172a 100%);
+        }
+        .gradient-text {
+            background: linear-gradient(90deg, #60a5fa, #34d399);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        .card-glow:hover {
+            box-shadow: 0 0 30px rgba(96, 165, 250, 0.15);
+            transform: translateY(-4px);
+            transition: all 0.3s ease;
+        }
+        .card-glow {
+            transition: all 0.3s ease;
+        }
+        .btn-telegram {
+            background: linear-gradient(135deg, #2AABEE, #229ED9);
+            transition: all 0.3s ease;
+        }
+        .btn-telegram:hover {
+            background: linear-gradient(135deg, #229ED9, #1a8fc4);
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(42, 171, 238, 0.4);
+        }
+        .floating {
+            animation: float 3s ease-in-out infinite;
+        }
+        @keyframes float {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-10px); }
+        }
+        .section-alt {
+            background: #f8fafc;
+        }
+        .pricing-popular {
+            background: linear-gradient(135deg, #1e3a5f, #1e40af);
+            color: white;
+            transform: scale(1.05);
+        }
+        .chat-bubble-right {
+            background: #2AABEE;
+            color: white;
+            border-radius: 18px 18px 4px 18px;
+        }
+        .chat-bubble-left {
+            background: #1e293b;
+            color: #e2e8f0;
+            border-radius: 18px 18px 18px 4px;
+        }
+        .stat-counter {
+            font-size: 2.5rem;
+            font-weight: 800;
+            background: linear-gradient(90deg, #60a5fa, #34d399);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+    </style>
+</head>
+<body class="bg-white text-gray-800">
+
+    <!-- ═══════════════════════════════ NAVBAR ═══════════════════════════════ -->
+    <nav class="gradient-hero sticky top-0 z-50 shadow-lg">
+        <div class="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <span class="text-3xl">💰</span>
+                <span class="text-white font-bold text-xl">BotBudget</span>
+            </div>
+            <div class="hidden md:flex items-center gap-8 text-gray-300 text-sm">
+                <a href="#features" class="hover:text-white transition">المميزات</a>
+                <a href="#how-it-works" class="hover:text-white transition">كيف يعمل؟</a>
+                <a href="#pricing" class="hover:text-white transition">الأسعار</a>
+            </div>
+            <a href="https://t.me/YourBotUsername" target="_blank"
+               class="btn-telegram text-white font-bold px-5 py-2 rounded-full text-sm flex items-center gap-2">
+                <svg class="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.96 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"/>
+                </svg>
+                ابدأ مجاناً
+            </a>
+        </div>
+    </nav>
+
+    <!-- ═══════════════════════════════ HERO ═══════════════════════════════ -->
+    <section class="gradient-hero text-white py-24 px-6 overflow-hidden relative">
+        <!-- Background decoration -->
+        <div class="absolute inset-0 overflow-hidden opacity-10">
+            <div class="absolute top-20 left-10 w-72 h-72 bg-blue-500 rounded-full blur-3xl"></div>
+            <div class="absolute bottom-10 right-10 w-96 h-96 bg-green-500 rounded-full blur-3xl"></div>
+        </div>
+
+        <div class="max-w-6xl mx-auto grid md:grid-cols-2 gap-12 items-center relative z-10">
+            <!-- Text -->
+            <div>
+                <div class="inline-block bg-blue-500/20 border border-blue-500/30 text-blue-300 text-sm px-4 py-1 rounded-full mb-6">
+                    🚀 متاح الآن على تليجرام
+                </div>
+                <h1 class="text-4xl md:text-5xl font-extrabold leading-tight mb-6">
+                    تتبع مصاريفك<br>
+                    <span class="gradient-text">بذكاء اصطناعي</span><br>
+                    بالعربي 🇪🇬
+                </h1>
+                <p class="text-gray-300 text-lg mb-8 leading-relaxed">
+                    بعت "قهوة ١٥ جنيه" — وخلاص! البوت بيفهم، بيسجّل، وبيديك تقارير ذكية عن مصاريفك. بدون تطبيقات، بدون تعقيد.
+                </p>
+                <div class="flex flex-col sm:flex-row gap-4">
+                    <a href="https://t.me/YourBotUsername" target="_blank"
+                       class="btn-telegram text-white font-bold px-8 py-4 rounded-full text-lg flex items-center justify-center gap-3">
+                        <svg class="w-6 h-6" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.96 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"/>
+                        </svg>
+                        ابدأ مجاناً على تليجرام
+                    </a>
+                    <a href="#how-it-works"
+                       class="border border-gray-500 text-gray-300 hover:border-white hover:text-white font-semibold px-8 py-4 rounded-full text-lg flex items-center justify-center gap-2 transition">
+                        كيف يعمل؟ ↓
+                    </a>
+                </div>
+                <p class="text-gray-500 text-sm mt-4">✅ مجاني للبدء — لا حاجة لتسجيل بريد إلكتروني</p>
+            </div>
+
+            <!-- Chat mockup -->
+            <div class="floating">
+                <div class="bg-gray-900/80 backdrop-blur-sm border border-gray-700 rounded-3xl p-6 max-w-sm mx-auto shadow-2xl">
+                    <!-- Chat header -->
+                    <div class="flex items-center gap-3 border-b border-gray-700 pb-4 mb-4">
+                        <div class="w-10 h-10 bg-blue-500 rounded-full flex items-center justify-center text-lg">💰</div>
+                        <div>
+                            <p class="text-white font-bold text-sm">BotBudget</p>
+                            <p class="text-green-400 text-xs">● متصل الآن</p>
+                        </div>
+                    </div>
+                    <!-- Messages -->
+                    <div class="space-y-3 text-sm">
+                        <div class="flex justify-end">
+                            <div class="chat-bubble-right px-4 py-2 max-w-xs">قهوة ١٥ جنيه</div>
+                        </div>
+                        <div class="flex justify-start">
+                            <div class="chat-bubble-left px-4 py-2 max-w-xs">
+                                ✅ تم التسجيل!<br>
+                                ☕ قهوة — <span class="text-blue-400">١٥ ج.م</span><br>
+                                📂 فئة: مأكل ومشرب
+                            </div>
+                        </div>
+                        <div class="flex justify-end">
+                            <div class="chat-bubble-right px-4 py-2 max-w-xs">تقرير النهارده</div>
+                        </div>
+                        <div class="flex justify-start">
+                            <div class="chat-bubble-left px-4 py-2 max-w-xs">
+                                📊 <span class="text-green-400 font-bold">اليوم أنفقت ٨٥ ج.م</span><br>
+                                🍕 أكل: ٥٠ج | ☕ مشروبات: ١٥ج<br>
+                                🚗 مواصلات: ٢٠ج<br>
+                                <span class="text-yellow-400 text-xs">⚠️ تجاوزت ٦٠٪ من ميزانية اليوم</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ═══════════════════════════════ STATS ═══════════════════════════════ -->
+    <section class="bg-gray-50 py-16 px-6 border-y border-gray-100">
+        <div class="max-w-4xl mx-auto grid grid-cols-2 md:grid-cols-4 gap-8 text-center">
+            <div>
+                <div class="stat-counter">٣٠+</div>
+                <p class="text-gray-500 text-sm mt-1">معاملة مجانية شهرياً</p>
+            </div>
+            <div>
+                <div class="stat-counter">AI</div>
+                <p class="text-gray-500 text-sm mt-1">يفهم العربي تلقائياً</p>
+            </div>
+            <div>
+                <div class="stat-counter">$3</div>
+                <p class="text-gray-500 text-sm mt-1">فقط للـ Premium شهرياً</p>
+            </div>
+            <div>
+                <div class="stat-counter">٢٤/٧</div>
+                <p class="text-gray-500 text-sm mt-1">متاح على مدار الساعة</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- ═══════════════════════════════ FEATURES ═══════════════════════════════ -->
+    <section id="features" class="py-24 px-6">
+        <div class="max-w-6xl mx-auto">
+            <div class="text-center mb-16">
+                <h2 class="text-3xl md:text-4xl font-extrabold text-gray-900 mb-4">
+                    كل اللي محتاجه في بوت واحد
+                </h2>
+                <p class="text-gray-500 text-lg max-w-xl mx-auto">
+                    مش بس تسجيل مصاريف — ده مستشارك المالي الشخصي على تليجرام
+                </p>
+            </div>
+
+            <div class="grid md:grid-cols-3 gap-8">
+                <!-- Feature 1 -->
+                <div class="card-glow bg-white border border-gray-100 rounded-2xl p-8 shadow-sm">
+                    <div class="text-4xl mb-4">🤖</div>
+                    <h3 class="font-bold text-xl mb-3 text-gray-900">ذكاء اصطناعي بالعربي</h3>
+                    <p class="text-gray-500 leading-relaxed">
+                        ابعت "أكل ٥٠ جنيه" أو "spent 20 on coffee" — البوت بيفهم ويصنّف تلقائياً بدون أي تعقيد.
+                    </p>
+                </div>
+
+                <!-- Feature 2 -->
+                <div class="card-glow bg-white border border-gray-100 rounded-2xl p-8 shadow-sm">
+                    <div class="text-4xl mb-4">📊</div>
+                    <h3 class="font-bold text-xl mb-3 text-gray-900">تقارير ذكية</h3>
+                    <p class="text-gray-500 leading-relaxed">
+                        تقارير يومية، أسبوعية، وشهرية. رسوم بيانية واضحة. تصدير Excel و CSV لما تحتاجه.
+                    </p>
+                </div>
+
+                <!-- Feature 3 -->
+                <div class="card-glow bg-white border border-gray-100 rounded-2xl p-8 shadow-sm">
+                    <div class="text-4xl mb-4">🔔</div>
+                    <h3 class="font-bold text-xl mb-3 text-gray-900">تنبيهات الميزانية</h3>
+                    <p class="text-gray-500 leading-relaxed">
+                        حدّد ميزانيتك الشهرية واستلم تنبيه فوري لو اقتربت من الحد أو تجاوزته.
+                    </p>
+                </div>
+
+                <!-- Feature 4 -->
+                <div class="card-glow bg-white border border-gray-100 rounded-2xl p-8 shadow-sm">
+                    <div class="text-4xl mb-4">🔄</div>
+                    <h3 class="font-bold text-xl mb-3 text-gray-900">مدفوعات متكررة</h3>
+                    <p class="text-gray-500 leading-relaxed">
+                        سجّل اشتراكاتك الشهرية (Netflix، جيم، إيجار) واستلم تذكير قبل موعد الدفع.
+                    </p>
+                </div>
+
+                <!-- Feature 5 -->
+                <div class="card-glow bg-white border border-gray-100 rounded-2xl p-8 shadow-sm">
+                    <div class="text-4xl mb-4">📈</div>
+                    <h3 class="font-bold text-xl mb-3 text-gray-900">مقارنة الأشهر</h3>
+                    <p class="text-gray-500 leading-relaxed">
+                        شوف إنفاقك ازداد ولا قلّ مقارنة بالشهر اللي فات. افهم عاداتك المالية بشكل أعمق.
+                    </p>
+                </div>
+
+                <!-- Feature 6 -->
+                <div class="card-glow bg-white border border-gray-100 rounded-2xl p-8 shadow-sm">
+                    <div class="text-4xl mb-4">🔒</div>
+                    <h3 class="font-bold text-xl mb-3 text-gray-900">خصوصية تامة</h3>
+                    <p class="text-gray-500 leading-relaxed">
+                        بياناتك محفوظة بأمان. لا أحد يشوف مصاريفك — ده حسابك الشخصي بس.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ═══════════════════════════════ HOW IT WORKS ═══════════════════════════════ -->
+    <section id="how-it-works" class="section-alt py-24 px-6">
+        <div class="max-w-4xl mx-auto">
+            <div class="text-center mb-16">
+                <h2 class="text-3xl md:text-4xl font-extrabold text-gray-900 mb-4">
+                    ٣ خطوات وخلاص 🚀
+                </h2>
+                <p class="text-gray-500 text-lg">ما في تسجيل، ما في تطبيق — كل حاجة على تليجرام</p>
+            </div>
+
+            <div class="grid md:grid-cols-3 gap-8 text-center">
+                <div class="relative">
+                    <div class="w-16 h-16 bg-blue-600 text-white text-2xl font-extrabold rounded-full flex items-center justify-center mx-auto mb-6 shadow-lg">١</div>
+                    <h3 class="font-bold text-xl mb-3">افتح البوت</h3>
+                    <p class="text-gray-500">دوّر على @BotBudget على تليجرام واضغط Start</p>
+                </div>
+                <div class="relative">
+                    <!-- connector line -->
+                    <div class="hidden md:block absolute top-8 right-full w-full h-0.5 bg-gray-200 -translate-y-0.5"></div>
+                    <div class="w-16 h-16 bg-blue-600 text-white text-2xl font-extrabold rounded-full flex items-center justify-center mx-auto mb-6 shadow-lg">٢</div>
+                    <h3 class="font-bold text-xl mb-3">ابعت مصروفك</h3>
+                    <p class="text-gray-500">كتابة حرة بالعربي أو الإنجليزي — البوت يفهم</p>
+                </div>
+                <div class="relative">
+                    <div class="hidden md:block absolute top-8 right-full w-full h-0.5 bg-gray-200 -translate-y-0.5"></div>
+                    <div class="w-16 h-16 bg-blue-600 text-white text-2xl font-extrabold rounded-full flex items-center justify-center mx-auto mb-6 shadow-lg">٣</div>
+                    <h3 class="font-bold text-xl mb-3">شوف تقاريرك</h3>
+                    <p class="text-gray-500">تقارير لحظية، رسوم بيانية، وتنبيهات ذكية</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ═══════════════════════════════ PRICING ═══════════════════════════════ -->
+    <section id="pricing" class="py-24 px-6">
+        <div class="max-w-4xl mx-auto">
+            <div class="text-center mb-16">
+                <h2 class="text-3xl md:text-4xl font-extrabold text-gray-900 mb-4">
+                    أسعار بسيطة وشفافة 💎
+                </h2>
+                <p class="text-gray-500 text-lg">ابدأ مجاناً — اترقّى لما تحب</p>
+            </div>
+
+            <div class="grid md:grid-cols-2 gap-8 items-center max-w-2xl mx-auto">
+                <!-- Free Plan -->
+                <div class="card-glow bg-white border-2 border-gray-200 rounded-2xl p-8 shadow-sm">
+                    <div class="text-center mb-6">
+                        <span class="text-4xl">🆓</span>
+                        <h3 class="font-extrabold text-2xl mt-3 text-gray-900">مجاني</h3>
+                        <p class="text-gray-400 text-sm mt-1">للبداية</p>
+                        <div class="text-4xl font-extrabold text-gray-900 mt-4">$0</div>
+                        <p class="text-gray-400 text-sm">للأبد</p>
+                    </div>
+                    <ul class="space-y-3 text-sm text-gray-600 mb-8">
+                        <li class="flex items-center gap-2"><span class="text-green-500">✓</span> ٣٠ معاملة شهرياً</li>
+                        <li class="flex items-center gap-2"><span class="text-green-500">✓</span> تسجيل بالذكاء الاصطناعي</li>
+                        <li class="flex items-center gap-2"><span class="text-green-500">✓</span> تقارير أساسية</li>
+                        <li class="flex items-center gap-2"><span class="text-green-500">✓</span> ميزانية شهرية</li>
+                        <li class="flex items-center gap-2"><span class="text-gray-300">✗</span> <span class="text-gray-400">تقارير متقدمة</span></li>
+                        <li class="flex items-center gap-2"><span class="text-gray-300">✗</span> <span class="text-gray-400">تصدير Excel/CSV</span></li>
+                    </ul>
+                    <a href="https://t.me/YourBotUsername" target="_blank"
+                       class="block w-full text-center border-2 border-blue-600 text-blue-600 hover:bg-blue-50 font-bold py-3 rounded-xl transition">
+                        ابدأ مجاناً
+                    </a>
+                </div>
+
+                <!-- Premium Plan -->
+                <div class="pricing-popular rounded-2xl p-8 shadow-xl text-white">
+                    <div class="text-center mb-6">
+                        <div class="inline-block bg-yellow-400 text-yellow-900 text-xs font-bold px-3 py-1 rounded-full mb-3">🌟 الأكثر قيمة</div>
+                        <span class="text-4xl block">👑</span>
+                        <h3 class="font-extrabold text-2xl mt-3">Premium</h3>
+                        <p class="text-blue-300 text-sm mt-1">للمستخدم الجاد</p>
+                        <div class="mt-4">
+                            <span class="text-4xl font-extrabold">$3</span>
+                            <span class="text-blue-300 text-sm"> / شهر</span>
+                        </div>
+                        <p class="text-blue-300 text-xs mt-1">أو $20 / سنة (وفّر 44%)</p>
+                    </div>
+                    <ul class="space-y-3 text-sm mb-8">
+                        <li class="flex items-center gap-2"><span class="text-green-400">✓</span> معاملات غير محدودة</li>
+                        <li class="flex items-center gap-2"><span class="text-green-400">✓</span> تسجيل بالذكاء الاصطناعي</li>
+                        <li class="flex items-center gap-2"><span class="text-green-400">✓</span> تقارير متقدمة + مقارنات</li>
+                        <li class="flex items-center gap-2"><span class="text-green-400">✓</span> تصدير Excel / CSV</li>
+                        <li class="flex items-center gap-2"><span class="text-green-400">✓</span> رسوم بيانية تفصيلية</li>
+                        <li class="flex items-center gap-2"><span class="text-green-400">✓</span> مدفوعات متكررة + تذكيرات</li>
+                    </ul>
+                    <a href="https://t.me/YourBotUsername" target="_blank"
+                       class="block w-full text-center bg-white text-blue-800 hover:bg-blue-50 font-bold py-3 rounded-xl transition">
+                        اشترك الآن
+                    </a>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ═══════════════════════════════ CTA ═══════════════════════════════ -->
+    <section class="gradient-hero text-white py-20 px-6">
+        <div class="max-w-2xl mx-auto text-center">
+            <div class="text-6xl mb-6 floating inline-block">💰</div>
+            <h2 class="text-3xl md:text-4xl font-extrabold mb-4">
+                جاهز تتحكم في مصاريفك؟
+            </h2>
+            <p class="text-gray-300 text-lg mb-8">
+                انضم دلوقتي — مجاني للبدء، بدون بطاقة بنكية
+            </p>
+            <a href="https://t.me/YourBotUsername" target="_blank"
+               class="btn-telegram inline-flex items-center gap-3 text-white font-bold px-10 py-4 rounded-full text-xl shadow-xl">
+                <svg class="w-6 h-6" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.96 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"/>
+                </svg>
+                ابدأ مجاناً على تليجرام
+            </a>
+        </div>
+    </section>
+
+    <!-- ═══════════════════════════════ FOOTER ═══════════════════════════════ -->
+    <footer class="bg-gray-900 text-gray-400 py-10 px-6">
+        <div class="max-w-4xl mx-auto text-center">
+            <div class="flex items-center justify-center gap-3 mb-4">
+                <span class="text-2xl">💰</span>
+                <span class="text-white font-bold text-lg">BotBudget</span>
+            </div>
+            <p class="text-sm mb-4">تتبع مصاريفك بذكاء — بالعربي على تليجرام</p>
+            <div class="flex justify-center gap-6 text-sm mb-6">
+                <a href="/privacy" class="hover:text-white transition">سياسة الخصوصية</a>
+                <a href="/terms" class="hover:text-white transition">شروط الاستخدام</a>
+                <a href="https://t.me/YourBotUsername" target="_blank" class="hover:text-white transition">تواصل معنا</a>
+            </div>
+            <p class="text-xs text-gray-600">© 2026 BotBudget. جميع الحقوق محفوظة.</p>
+        </div>
+    </footer>
+
+</body>
+</html>

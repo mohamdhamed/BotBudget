@@ -14,7 +14,7 @@ from dashboard.queries import (
 router = APIRouter()
 
 
-@router.get("/", response_class=HTMLResponse)
+@router.get("/admin", response_class=HTMLResponse)
 async def overview(request: Request, user: str = Depends(verify_admin)):
     stats = await get_overview_stats()
     growth = await get_user_growth_chart(30)

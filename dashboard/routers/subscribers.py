@@ -9,7 +9,7 @@ from dashboard.queries import get_subscribers
 router = APIRouter()
 
 
-@router.get("/subscribers", response_class=HTMLResponse)
+@router.get("/admin/subscribers", response_class=HTMLResponse)
 async def subscribers_page(request: Request, user: str = Depends(verify_admin)):
     subs = await get_subscribers()
     expiring = [s for s in subs if s["expiring_soon"]]
