@@ -3,7 +3,7 @@
 {% block content %}
 <div class="flex justify-between items-center mb-6">
     <h2 class="text-3xl font-bold text-gray-800">👥 إدارة المستخدمين</h2>
-    <form method="get" action="/users" class="flex gap-2">
+    <form method="get" action="{{ admin_prefix }}/users" class="flex gap-2">
         <input type="text" name="search" value="{{ search }}" placeholder="بحث بالاسم أو ID..."
                class="px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none">
         <button class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700">🔍 بحث</button>
@@ -40,16 +40,16 @@
                 <td class="px-4 py-3 text-sm text-gray-500">{{ u.created_at }}</td>
                 <td class="px-4 py-3">
                     <div class="flex gap-1 flex-wrap">
-                        <a href="/users/{{ u.user_id }}"
+                        <a href="{{ admin_prefix }}/users/{{ u.user_id }}"
                            class="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded hover:bg-blue-200">🔍 تفاصيل</a>
                         {% if u.plan == 'premium' %}
-                        <form method="post" action="/users/downgrade" class="inline">
+                        <form method="post" action="{{ admin_prefix }}/users/downgrade" class="inline">
                             <input type="hidden" name="user_id" value="{{ u.user_id }}">
                             <button class="text-xs bg-orange-100 text-orange-700 px-2 py-1 rounded hover:bg-orange-200"
                                     onclick="return confirm('إرجاع للخطة المجانية؟')">⬇️ تنزيل</button>
                         </form>
                         {% else %}
-                        <form method="post" action="/users/upgrade" class="inline flex gap-1">
+                        <form method="post" action="{{ admin_prefix }}/users/upgrade" class="inline flex gap-1">
                             <input type="hidden" name="user_id" value="{{ u.user_id }}">
                             <input type="number" name="days" value="30" min="1" max="365"
                                    class="w-14 text-xs border rounded px-1">
@@ -58,7 +58,7 @@
                             </button>
                         </form>
                         {% endif %}
-                        <form method="post" action="/users/{{ u.user_id }}/delete" class="inline"
+                        <form method="post" action="{{ admin_prefix }}/users/{{ u.user_id }}/delete" class="inline"
                               onsubmit="return confirm('حذف {{ u.name or u.user_id }} وكل بياناته نهائياً؟')">
                             <button class="text-xs bg-red-100 text-red-700 px-2 py-1 rounded hover:bg-red-200">🗑️ حذف</button>
                         </form>

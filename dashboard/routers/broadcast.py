@@ -47,7 +47,7 @@ async def _broadcast(user_ids: list[int], text: str) -> tuple[int, int]:
     return sent, failed
 
 
-@router.get("/admin/broadcast", response_class=HTMLResponse)
+@router.get("/broadcast", response_class=HTMLResponse)
 async def broadcast_page(request: Request, user: str = Depends(verify_admin)):
     all_count = len(await get_all_user_ids())
     premium_count = len(await get_premium_user_ids())
@@ -63,7 +63,7 @@ async def broadcast_page(request: Request, user: str = Depends(verify_admin)):
     )
 
 
-@router.post("/admin/broadcast", response_class=HTMLResponse)
+@router.post("/broadcast", response_class=HTMLResponse)
 async def broadcast_send(
     request: Request,
     message: str = Form(...),

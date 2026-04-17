@@ -16,7 +16,11 @@ router = APIRouter()
 _sub_repo = SubscriptionRepository()
 
 
-@router.get("/admin/users", response_class=HTMLResponse)
+def _prefix(request: Request) -> str:
+    return request.app.state.templates.env.globals["admin_prefix"]
+
+
+@router.get("/users", response_class=HTMLResponse)
 async def users_page(request: Request, search: str = "", user: str = Depends(verify_admin)):
     users = await get_all_users(search=search)
     return request.app.state.templates.TemplateResponse(
@@ -30,7 +34,7 @@ async def users_page(request: Request, search: str = "", user: str = Depends(ver
     )
 
 
-@router.get("/admin/users/{user_id}", response_class=HTMLResponse)
+@router.get("/users/{user_id}", response_class=HTMLResponse)
 async def user_detail_page(user_id: int, request: Request, user: str = Depends(verify_admin)):
     data = await get_user_detail(user_id)
     if not data:
@@ -45,32 +49,34 @@ async def user_detail_page(user_id: int, request: Request, user: str = Depends(v
     )
 
 
-@router.post("/admin/users/upgrade")
+@router.post("/users/upgrade")
 async def upgrade_user(
+    request: Request,
     user_id: int = Form(...),
     days: int = Form(30),
     user: str = Depends(verify_admin),
 ):
     await _sub_repo.upgrade(user_id, days, upgraded_by=0)
-    return RedirectResponse(url="/users", status_code=303)
+    return RedirectResponse(url=f"{_prefix(request)}/users", status_code=303)
 
 
-@router.post("/admin/users/downgrade")
+@router.post("/users/downgrade")
 async def downgrade_user(
+    request: Request,
     user_id: int = Form(...),
     user: str = Depends(verify_admin),
 ):
     await _sub_repo.downgrade(user_id)
-    return RedirectResponse(url="/users", status_code=303)
+    return RedirectResponse(url=f"{_prefix(request)}/users", status_code=303)
 
 
-@router.post("/admin/users/{user_id}/delete")
-async def delete_user(user_id: int, user: str = Depends(verify_admin)):
+@router.post("/users/{user_id}/delete")
+async def delete_user(user_id: int, request: Request, user: str = Depends(verify_admin)):
     await delete_user_and_data(user_id)
-    return RedirectResponse(url="/users", status_code=303)
+    return RedirectResponse(url=f"{_prefix(request)}/users", status_code=303)
 
 
-@router.post("/admin/users/{user_id}/delete-expenses")
-async def delete_expenses(user_id: int, user: str = Depends(verify_admin)):
+@router.post("/users/{user_id}/delete-expenses")
+async def delete_expenses(user_id: int, request: Request, user: str = Depends(verify_admin)):
     await delete_user_expenses(user_id)
-    return RedirectResponse(url=f"/users/{user_id}", status_code=303)
+    return RedirectResponse(url=f"{_prefix(request)}/users/{user_id}", status_code=303)

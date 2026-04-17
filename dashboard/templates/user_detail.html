@@ -4,7 +4,7 @@
 
 <!-- Header -->
 <div class="flex items-center gap-4 mb-6">
-    <a href="/users" class="text-gray-500 hover:text-gray-800 text-sm">← رجوع للمستخدمين</a>
+    <a href="{{ admin_prefix }}/users" class="text-gray-500 hover:text-gray-800 text-sm">← رجوع للمستخدمين</a>
     <h2 class="text-3xl font-bold text-gray-800">👤 {{ user.name or "مستخدم" }}</h2>
     {% if user.plan == 'premium' %}
     <span class="bg-yellow-100 text-yellow-800 text-sm px-3 py-1 rounded-full font-semibold">🌟 مميز</span>
@@ -37,13 +37,13 @@
 <div class="bg-white rounded-lg shadow p-4 mb-6 flex gap-3 flex-wrap items-center">
     <span class="font-semibold text-gray-700">إجراءات:</span>
     {% if user.plan == 'premium' %}
-    <form method="post" action="/users/downgrade" class="inline">
+    <form method="post" action="{{ admin_prefix }}/users/downgrade" class="inline">
         <input type="hidden" name="user_id" value="{{ user.user_id }}">
         <button class="bg-orange-100 text-orange-700 px-4 py-2 rounded hover:bg-orange-200 text-sm"
                 onclick="return confirm('إرجاع للخطة المجانية؟')">⬇️ تنزيل للمجاني</button>
     </form>
     {% else %}
-    <form method="post" action="/users/upgrade" class="inline flex gap-2 items-center">
+    <form method="post" action="{{ admin_prefix }}/users/upgrade" class="inline flex gap-2 items-center">
         <input type="hidden" name="user_id" value="{{ user.user_id }}">
         <input type="number" name="days" value="30" min="1" max="365"
                class="w-20 text-sm border rounded px-2 py-2">
@@ -52,12 +52,12 @@
     </form>
     {% endif %}
 
-    <form method="post" action="/users/{{ user.user_id }}/delete-expenses" class="inline"
+    <form method="post" action="{{ admin_prefix }}/users/{{ user.user_id }}/delete-expenses" class="inline"
           onsubmit="return confirm('حذف كل معاملات هذا المستخدم؟')">
         <button class="bg-orange-100 text-orange-700 px-4 py-2 rounded hover:bg-orange-200 text-sm">🧹 حذف كل المعاملات</button>
     </form>
 
-    <form method="post" action="/users/{{ user.user_id }}/delete" class="inline"
+    <form method="post" action="{{ admin_prefix }}/users/{{ user.user_id }}/delete" class="inline"
           onsubmit="return confirm('حذف المستخدم وكل بياناته نهائياً؟ لا يمكن التراجع!')">
         <button class="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700 text-sm">🗑️ حذف المستخدم نهائياً</button>
     </form>

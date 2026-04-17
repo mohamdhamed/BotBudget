@@ -22,7 +22,14 @@
       "Bash(grep -l \"recurring\" /d/BotBudget/alembic/versions/*.py)",
       "mcp__0e7ec605-1c6d-4bc9-8e37-5f925d172f2a__documents_create",
       "Bash(python -c \"from dashboard import main\")",
-      "Bash(grep -n \"budgets\\\\|budget\" D:/BotBudget/alembic/versions/*.py)"
+      "Bash(grep -n \"budgets\\\\|budget\" D:/BotBudget/alembic/versions/*.py)",
+      "Bash(xargs grep *)",
+      "Bash(find /d/BotBudget/handlers -name \"*.py\" -exec grep -l \"logger\\\\.\" {} \\\\;)",
+      "Bash(find /d/BotBudget/handlers -name \"*.py\" ! -name \"__init__.py\" -exec wc -l {} +)",
+      "Bash(awk -F'\"' '{print $2}')",
+      "Bash(find /d/BotBudget/handlers -name \"*.py\" -exec grep -h \"CommandHandler\\(\" {} \\\\;)",
+      "Read(//tmp/**)",
+      "Bash(grep -B1 \"pass$\")"
     ]
   }
 }

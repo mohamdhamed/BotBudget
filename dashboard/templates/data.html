@@ -35,7 +35,7 @@
     <div class="bg-white rounded-lg shadow p-6">
         <h3 class="font-bold text-gray-700 text-lg mb-2">🧹 حذف معاملات قديمة</h3>
         <p class="text-gray-500 text-sm mb-4">حذف كل المعاملات الأقدم من عدد محدد من الأشهر لجميع المستخدمين.</p>
-        <form method="post" action="/data/clean-old-expenses"
+        <form method="post" action="{{ admin_prefix }}/data/clean-old-expenses"
               onsubmit="return confirm('سيتم حذف كل المعاملات الأقدم من المدة المحددة. هل أنت متأكد؟')">
             <div class="flex gap-3 items-center">
                 <label class="text-sm text-gray-600">أقدم من</label>
@@ -51,7 +51,7 @@
     <div class="bg-white rounded-lg shadow p-6">
         <h3 class="font-bold text-gray-700 text-lg mb-2">👻 حذف المستخدمين غير النشطين</h3>
         <p class="text-gray-500 text-sm mb-4">حذف المستخدمين الذين لم يسجلوا أي معاملة منذ فترة (مع حذف بياناتهم).</p>
-        <form method="post" action="/data/delete-inactive"
+        <form method="post" action="{{ admin_prefix }}/data/delete-inactive"
               onsubmit="return confirm('سيتم حذف المستخدمين غير النشطين نهائياً. هل أنت متأكد؟')">
             <div class="flex gap-3 items-center">
                 <label class="text-sm text-gray-600">غير نشط منذ أكثر من</label>
@@ -67,7 +67,7 @@
     <div class="bg-white rounded-lg shadow p-6">
         <h3 class="font-bold text-gray-700 text-lg mb-2">📤 تصدير بيانات المستخدمين</h3>
         <p class="text-gray-500 text-sm mb-4">تنزيل ملف CSV بكل بيانات المستخدمين وإحصائياتهم.</p>
-        <a href="/data/export-users" class="inline-block bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 text-sm">
+        <a href="{{ admin_prefix }}/data/export-users" class="inline-block bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 text-sm">
             ⬇️ تحميل CSV
         </a>
     </div>
@@ -76,7 +76,7 @@
     <div class="bg-white rounded-lg shadow p-6">
         <h3 class="font-bold text-gray-700 text-lg mb-2">🔧 تنظيف البيانات المعلقة</h3>
         <p class="text-gray-500 text-sm mb-4">حذف الاشتراكات والميزانيات المرتبطة بمستخدمين غير موجودين.</p>
-        <form method="post" action="/data/clean-orphaned"
+        <form method="post" action="{{ admin_prefix }}/data/clean-orphaned"
               onsubmit="return confirm('حذف البيانات المعلقة؟')">
             <button class="bg-gray-600 text-white px-4 py-2 rounded hover:bg-gray-700 text-sm">🔧 تنظيف</button>
         </form>
