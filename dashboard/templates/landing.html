@@ -5,8 +5,19 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>BotBudget — تتبع مصاريفك بذكاء</title>
     <meta name="description" content="بوت تليجرام ذكي لتتبع المصاريف وإدارة الميزانية بالعربي. مجاناً للبدء!">
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&display=swap" rel="stylesheet">
+
+    <!-- Performance: Preconnect -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="preconnect" href="https://cdn.tailwindcss.com">
+    <link rel="dns-prefetch" href="https://cdn.tailwindcss.com">
+
+    <!-- Fonts: preload critical weight + swap -->
+    <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;800&display=swap">
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;800&display=swap" rel="stylesheet">
+
+    <!-- Tailwind (deferred so it doesn't block LCP) -->
+    <script src="https://cdn.tailwindcss.com" defer></script>
     <style>
         * { scroll-behavior: smooth; }
         body {
