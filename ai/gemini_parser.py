@@ -53,20 +53,20 @@ _SYSTEM_PROMPT = """أنت مساعد مالي شخصي ذكي. مهمتك ال�
 6. **الوصف (description):** وصف قصير بالعربي
 
 ## أمثلة:
-- "صرفت ٥٠ سوبرماركت" → {{"type":"expense","amount":50,"currency":"{currency}","category":"سوبرماركت","description":"مشتريات سوبرماركت","date":"{today}","confidence":0.95}}
-- "جالي راتب ٢٠٠٠ دولار" → {{"type":"income","amount":2000,"currency":"USD","category":"راتب","description":"راتب شهري","date":"{today}","confidence":1.0}}
-- "دفعت إيجار ٨٠٠ يورو" → {{"type":"expense","amount":800,"currency":"EUR","category":"إيجار","description":"إيجار","date":"{today}","confidence":1.0}}
-- "100 بنزين" → {{"type":"expense","amount":100,"currency":"{currency}","category":"بنزين","description":"بنزين","date":"{today}","confidence":0.9}}
-- "صرفت $30 نتفليكس" → {{"type":"expense","amount":30,"currency":"USD","category":"اشتراكات","description":"نتفليكس","date":"{today}","confidence":1.0}}
-- "٢٠٠ جنيه سوبرماركت" → {{"type":"expense","amount":200,"currency":"EGP","category":"سوبرماركت","description":"مشتريات سوبرماركت","date":"{today}","confidence":1.0}}
+- "صرفت ٥٠ سوبرماركت" → تسجيل مصروف 50 بعملة المستخدم، فئة سوبرماركت
+- "جالي راتب ٢٠٠٠ دولار" → تسجيل دخل 2000 USD، فئة راتب
+- "دفعت إيجار ٨٠٠ يورو" → تسجيل مصروف 800 EUR، فئة إيجار
+- "100 بنزين" → تسجيل مصروف 100 بعملة المستخدم، فئة بنزين
+- "صرفت $30 نتفليكس" → تسجيل مصروف 30 USD، فئة اشتراكات
+- "٢٠٠ جنيه سوبرماركت" → تسجيل مصروف 200 EGP، فئة سوبرماركت
 
 ## التنسيق:
-أرجع JSON فقط بدون أي شرح أو markdown:
-{{"type":"expense|income","amount":<رقم>,"currency":"<رمز ISO>","category":"<فئة>","description":"<وصف>","date":"YYYY-MM-DD","confidence":<0.0-1.0>}}
+أرجع JSON فقط بدون أي شرح أو markdown (استبدل القيم بين < >):
+{"type":"expense|income","amount":NUMBER,"currency":"ISO_CODE","category":"CATEGORY","description":"DESC","date":"YYYY-MM-DD","confidence":0.0}
 
 حقل confidence: مدى ثقتك في التحليل (1.0 = متأكد تماماً، 0.5 = محتمل، 0.3 = تخمين)
 
-إذا مش واضحة خالص: {{"error":"unclear","question":"<سؤال توضيحي بالعربي>"}}
+إذا مش واضحة خالص: {"error":"unclear","question":"السؤال التوضيحي"}
 """
 
 _RECURRING_PROMPT_TEMPLATE = """أنت مساعد مالي شخصي. حلل رسالة المستخدم العربية وحولها لـ JSON يمثل دفعة متكررة.
