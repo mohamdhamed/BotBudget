@@ -20,7 +20,7 @@ from telegram.ext import (
     filters,
 )
 
-from config import TELEGRAM_BOT_TOKEN
+from config import TELEGRAM_BOT_TOKEN, IS_STAGING
 from db.connection import init_pool, close_pool
 from db.init_db import create_tables
 from handlers.admin_handler import (
@@ -69,6 +69,7 @@ from handlers.budget_handler import (
     handle_budget_cancel,
     budget_set_conversation,
 )
+from handlers.currency_handler import currency_command, currency_callback
 from repositories.allowed_users_repo import AllowedUsersRepository
 from services.recurring_service import RecurringService
 from services.expense_service import ExpenseService
@@ -86,17 +87,64 @@ async def send_weekly_report(context) -> None:
     from config import ALLOWED_USER_IDS
     expense_service = ExpenseService()
 
+    header = (
+        "📬 ━━━━━━━━━━━━━━\n"
+        "   <b>التقرير الأسبوعي</b>\n"
+        "━━━━━━━━━━━━━━ 📬\n\n"
+    )
+    footer = "\n\n✨ أسبوع سعيد! — BotBudget"
+
     for user_id in ALLOWED_USER_IDS:
         try:
             summary = await expense_service.get_week_summary(user_id)
             await context.bot.send_message(
                 chat_id=user_id,
-                text=f"📬 *التقرير الأسبوعي*\n\n{summary}",
-                parse_mode="Markdown",
+                text=header + summary + footer,
+                parse_mode="HTML",
             )
             logger.info(f"Sent weekly report to user {user_id}")
         except Exception as e:
             logger.error(f"Failed to send weekly report to {user_id}: {e}")
+
+
+async def test_daily_command(update, context) -> None:
+    """[STAGING ONLY] Trigger the daily report immediately."""
+    user_id = update.effective_user.id
+    summary = await ExpenseService().get_yesterday_summary(user_id)
+    await update.message.reply_text(summary, parse_mode="HTML")
+
+
+async def test_weekly_command(update, context) -> None:
+    """[STAGING ONLY] Trigger the weekly report immediately."""
+    user_id = update.effective_user.id
+    summary = await ExpenseService().get_week_summary(user_id)
+    header = (
+        "📬 ━━━━━━━━━━━━━━\n"
+        "   <b>التقرير الأسبوعي</b>\n"
+        "━━━━━━━━━━━━━━ 📬\n\n"
+    )
+    footer = "\n\n✨ أسبوع سعيد! — BotBudget"
+    await update.message.reply_text(header + summary + footer, parse_mode="HTML")
+
+
+async def send_daily_report(context) -> None:
+    """
+    Scheduled job: send morning summary of yesterday's transactions.
+    Runs daily at 08:00 AM.
+    """
+    from config import ALLOWED_USER_IDS
+    expense_service = ExpenseService()
+
+    for user_id in ALLOWED_USER_IDS:
+        try:
+            summary = await expense_service.get_yesterday_summary(user_id)
+            await context.bot.send_message(
+                chat_id=user_id,
+                text=summary,
+                parse_mode="HTML",
+            )
+        except Exception as e:
+            logger.error(f"Failed to send daily report to {user_id}: {e}")
 
 
 async def send_reminders(context) -> None:
@@ -160,6 +208,7 @@ async def set_bot_commands(application: Application) -> None:
         BotCommand("insights", "🧠 تحليل ذكي وتوقعات"),
         BotCommand("export_csv", "📄 تصدير CSV"),
         BotCommand("export_excel", "📊 تصدير Excel"),
+        BotCommand("currency", "💱 تغيير العملة الافتراضية"),
         BotCommand("plan", "📋 خطتك الحالية"),
         BotCommand("upgrade_info", "🌟 معلومات الترقية"),
         BotCommand("about", "ℹ️ عن البوت"),
@@ -239,6 +288,13 @@ def main() -> None:
     app.add_handler(CommandHandler("balance", balance_command))
     app.add_handler(CommandHandler("last", last_command))
     app.add_handler(CommandHandler("undo", undo_command))
+    app.add_handler(CommandHandler("currency", currency_command))
+
+    # Staging-only test commands
+    if IS_STAGING:
+        app.add_handler(CommandHandler("test_daily", test_daily_command))
+        app.add_handler(CommandHandler("test_weekly", test_weekly_command))
+        logger.info("Staging mode: registered /test_daily and /test_weekly commands")
     app.add_handler(CommandHandler("plan", plan_command))
     app.add_handler(CommandHandler("upgrade_info", upgrade_info_command))
     app.add_handler(CommandHandler("terms", terms_command))
@@ -270,10 +326,16 @@ def main() -> None:
     app.add_handler(CallbackQueryHandler(handle_rec_toggle, pattern=r"^rectoggle_\d+$"))
     app.add_handler(CallbackQueryHandler(handle_rec_cancel, pattern="^rec_cancel$"))
     app.add_handler(CallbackQueryHandler(handle_rec_add_hint, pattern="^rec_add_hint$"))
+    app.add_handler(CallbackQueryHandler(currency_callback, pattern=r"^setcur_"))
 
     # ── 6. Schedule jobs ──────────────────────────────────
     job_queue = app.job_queue
     if job_queue:
+        job_queue.run_daily(
+            send_daily_report,
+            time=dt_time(hour=8, minute=0),
+            name="daily_report",
+        )
         job_queue.run_daily(
             send_reminders,
             time=dt_time(hour=9, minute=0),
@@ -293,7 +355,7 @@ def main() -> None:
             first=60,
             name="rate_limit_cleanup",
         )
-        logger.info("Scheduled daily reminders (09:00) + weekly report (Sunday 20:00) + rate limit cleanup (hourly)")
+        logger.info("Scheduled daily report (08:00) + recurring reminders (09:00) + weekly report (Sunday 20:00) + rate limit cleanup (hourly)")
 
     # ── 7. Start polling ──────────────────────────────────
     logger.info("🚀 BotBudget is running! Press Ctrl+C to stop.")

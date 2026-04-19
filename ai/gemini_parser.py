@@ -29,6 +29,7 @@ _SYSTEM_PROMPT = """أنت مساعد مالي شخصي ذكي. مهمتك ال�
 (عامية أو فصحى) إلى JSON يمثل معاملة مالية.
 
 تاريخ اليوم: {today}
+عملة المستخدم الافتراضية: {currency}
 
 ## قواعد التحليل:
 
@@ -39,28 +40,46 @@ _SYSTEM_PROMPT = """أنت مساعد مالي شخصي ذكي. مهمتك ال�
 
 2. **المبلغ (amount):** استخرج الرقم سواء بالأرقام العربية (٥٠) أو الإنجليزية (50)
 
-3. **الفئة (category):** اختر الأنسب من:
+3. **العملة (currency):** استخرج العملة من النص إذا ذُكرت صراحةً:
+   - رموز: $→USD, €→EUR, £→GBP, ج.م/جنيه→EGP, ر.س/ريال→SAR, د.إ/درهم→AED, د.ك/دينار→KWD
+   - كلمات: "دولار"→USD, "يورو"→EUR, "جنيه"→EGP, "ريال"→SAR, "درهم"→AED, "دينار"→KWD, "جنيه إسترليني"→GBP
+   - إذا ما ذُكرت عملة → استخدم عملة المستخدم الافتراضية: {currency}
+
+4. **الفئة (category):** اختر الأنسب من:
    طعام، مواصلات، سوبرماركت، إيجار، فواتير، اشتراكات، ترفيه، صحة، تعليم، ملابس، هدايا، راتب، تحويل، مطعم، كافيه، بنزين، تأمين، أخرى
 
-4. **التاريخ (date):** إذا ما ذكرش تاريخ → استخدم اليوم. "امبارح/أمس" → أمس. "أول امبارح" → قبل يومين
+5. **التاريخ (date):** احسب التاريخ بدقة بناءً على تاريخ اليوم ({today}):
+   - إذا ما ذكرش تاريخ → اليوم
+   - "امبارح/أمس" → اليوم - 1
+   - "أول امبارح" → اليوم - 2
+   - "من X يوم" أو "قبل X يوم" → اليوم - X
+   - "الأسبوع اللي فات" → اليوم - 7
+   - "يوم 15" أو "15 الشهر" → يوم 15 من الشهر الحالي
+   - "15 أبريل" → 15 من شهر أبريل في السنة الحالية
+   - تاريخ كامل (15/4/2026 أو 2026-04-15) → استخدمه كما هو
+   - أسماء الأيام (الأحد، الاثنين...) → آخر يوم بهذا الاسم قبل اليوم
 
-5. **الوصف (description):** وصف قصير بالعربي
+6. **الوصف (description):** وصف قصير بالعربي
 
 ## أمثلة:
-- "صرفت ٥٠ سوبرماركت" → {"type":"expense","amount":50,"category":"سوبرماركت","description":"مشتريات سوبرماركت","date":"{today}"}
-- "جالي راتب ٢٠٠٠" → {"type":"income","amount":2000,"category":"راتب","description":"راتب شهري","date":"{today}"}
-- "٣٥٠ دفعة من الراتب" → {"type":"income","amount":350,"category":"راتب","description":"دفعة من الراتب","date":"{today}"}
-- "دفعت إيجار ٨٠٠" → {"type":"expense","amount":800,"category":"إيجار","description":"إيجار","date":"{today}"}
-- "100 بنزين" → {"type":"expense","amount":100,"category":"بنزين","description":"بنزين","date":"{today}"}
-- "حولولي 500" → {"type":"income","amount":500,"category":"تحويل","description":"تحويل مالي","date":"{today}"}
+- "صرفت ٥٠ سوبرماركت" → تسجيل مصروف 50 بعملة المستخدم، فئة سوبرماركت
+- "جالي راتب ٢٠٠٠ دولار" → تسجيل دخل 2000 USD، فئة راتب
+- "دفعت إيجار ٨٠٠ يورو" → تسجيل مصروف 800 EUR، فئة إيجار
+- "100 بنزين" → تسجيل مصروف 100 بعملة المستخدم، فئة بنزين
+- "صرفت $30 نتفليكس" → تسجيل مصروف 30 USD، فئة اشتراكات
+- "٢٠٠ جنيه سوبرماركت" → تسجيل مصروف 200 EGP، فئة سوبرماركت
+- "صرفت امبارح 70 مواصلات" → تاريخ = اليوم - 1
+- "قبل 3 أيام دفعت 200 إيجار" → تاريخ = اليوم - 3
+- "يوم 10 صرفت 50 طعام" → التاريخ اليوم 10 من الشهر الحالي
+- "15/4 دفعت 300 فاتورة" → التاريخ 2026-04-15
 
 ## التنسيق:
-أرجع JSON فقط بدون أي شرح أو markdown:
-{"type":"expense|income","amount":<رقم>,"category":"<فئة>","description":"<وصف>","date":"YYYY-MM-DD","confidence":<0.0-1.0>}
+أرجع JSON فقط بدون أي شرح أو markdown (استبدل القيم بين < >):
+{"type":"expense|income","amount":NUMBER,"currency":"ISO_CODE","category":"CATEGORY","description":"DESC","date":"YYYY-MM-DD","confidence":0.0}
 
 حقل confidence: مدى ثقتك في التحليل (1.0 = متأكد تماماً، 0.5 = محتمل، 0.3 = تخمين)
 
-إذا مش واضحة خالص: {"error":"unclear","question":"<سؤال توضيحي بالعربي>"}
+إذا مش واضحة خالص: {"error":"unclear","question":"السؤال التوضيحي"}
 """
 
 _RECURRING_PROMPT_TEMPLATE = """أنت مساعد مالي شخصي. حلل رسالة المستخدم العربية وحولها لـ JSON يمثل دفعة متكررة.
@@ -156,27 +175,32 @@ def _call_gemini(model_name: str, system_prompt: str, user_text: str) -> str:
 
 def _parse_with_fallback(system_prompt: str, user_text: str, context_name: str) -> str:
     """
-    Try Gemini first; fall back to Groq on quota exhaustion.
+    Try Gemini first; fall back to Groq on any Gemini failure.
     Returns raw AI response text.
     """
-    try:
-        raw = _call_gemini("gemini-2.0-flash", system_prompt, user_text)
-        logger.debug("Used Gemini for %s", context_name)
-        return raw
-    except ResourceExhausted:
-        if not GROQ_API_KEY:
-            logger.error("Gemini quota exceeded and no GROQ_API_KEY configured.")
-            raise
-        logger.warning("Gemini quota exceeded — falling back to Groq for %s", context_name)
-        return _call_groq(system_prompt, user_text)
+    if GEMINI_API_KEY:
+        try:
+            raw = _call_gemini("gemini-2.0-flash", system_prompt, user_text)
+            logger.debug("Used Gemini for %s", context_name)
+            return raw
+        except Exception as e:
+            if not GROQ_API_KEY:
+                raise
+            logger.warning("Gemini failed (%s) — falling back to Groq for %s", type(e).__name__, context_name)
+
+    if not GROQ_API_KEY:
+        raise RuntimeError("No AI provider available. Set GEMINI_API_KEY or GROQ_API_KEY.")
+
+    logger.debug("Used Groq for %s", context_name)
+    return _call_groq(system_prompt, user_text)
 
 
-def parse_transaction(text: str) -> dict:
+def parse_transaction(text: str, user_currency: str = "EUR") -> dict:
     """
     Parse a natural-language Arabic financial message into structured data.
 
     Returns:
-        Dict with keys: type, amount, category, description, date, confidence.
+        Dict with keys: type, amount, currency, category, description, date, confidence.
         OR dict with keys: error, question (if unclear).
     """
     text = _sanitize_input(text)
@@ -184,7 +208,7 @@ def parse_transaction(text: str) -> dict:
         return {"error": "empty", "question": "الرسالة فاضية. اكتب المعاملة المالية."}
 
     today = date.today().isoformat()
-    system_prompt = _SYSTEM_PROMPT.replace("{today}", today)
+    system_prompt = _SYSTEM_PROMPT.replace("{today}", today).replace("{currency}", user_currency)
 
     try:
         raw = _parse_with_fallback(system_prompt, text, "parse_transaction")

@@ -12,6 +12,7 @@ from typing import Optional
 from ai.gemini_parser import parse_transaction
 from models.expense import Expense
 from repositories.expense_repo import ExpenseRepository
+from repositories.user_repo import UserRepository
 from utils.logger import get_logger
 
 logger = get_logger(__name__)
@@ -30,6 +31,34 @@ def _fmt(amount: float, currency: str = "") -> str:
     return f"{amount:,.2f}{cur}"
 
 
+def _totals_by_currency(expenses: list, tx_type: str = None) -> dict[str, float]:
+    """Group transaction amounts by currency.
+
+    Args:
+        expenses: list of Expense objects
+        tx_type: 'expense', 'income', or None (all)
+
+    Returns:
+        {currency: total_amount}
+    """
+    totals: dict[str, float] = {}
+    for e in expenses:
+        if tx_type and e.type != tx_type:
+            continue
+        totals[e.currency] = totals.get(e.currency, 0.0) + e.amount
+    return totals
+
+
+def _fmt_totals(totals: dict[str, float]) -> str:
+    """Format a {currency: amount} dict as multi-line or inline."""
+    if not totals:
+        return "0.00"
+    if len(totals) == 1:
+        cur, amt = next(iter(totals.items()))
+        return _fmt(amt, cur)
+    return "\n  " + "\n  ".join(f"• {_fmt(amt, cur)}" for cur, amt in totals.items())
+
+
 class ExpenseService:
     """
     Handles all business logic related to financial transactions.
@@ -44,6 +73,7 @@ class ExpenseService:
 
     def __init__(self):
         self.repo = ExpenseRepository()
+        self.user_repo = UserRepository()
 
     async def _get_currency(self, user_id: int, start: date = None, end: date = None) -> str:
         """Get user's primary currency from their transactions."""
@@ -72,7 +102,10 @@ class ExpenseService:
         Returns:
             Dict with 'success' and 'message' keys, or 'error' and 'question'.
         """
-        parsed = parse_transaction(text)
+        user = await self.user_repo.get_by_telegram_id(user_id)
+        user_currency = user["currency"] if user else "EUR"
+
+        parsed = parse_transaction(text, user_currency)
 
         # If AI couldn't parse, return the clarifying question
         if "error" in parsed:
@@ -83,6 +116,7 @@ class ExpenseService:
                 user_id=user_id,
                 type=parsed["type"],
                 amount=float(parsed["amount"]),
+                currency=parsed.get("currency", user_currency),
                 category=parsed.get("category", "أخرى"),
                 description=parsed.get("description"),
                 date=date.fromisoformat(parsed["date"]),
@@ -118,11 +152,15 @@ class ExpenseService:
         Returns:
             Same format as add_from_text.
         """
+        user = await self.user_repo.get_by_telegram_id(user_id)
+        user_currency = user["currency"] if user else "EUR"
+
         try:
             expense = Expense(
                 user_id=user_id,
                 type=parsed["type"],
                 amount=float(parsed["amount"]),
+                currency=parsed.get("currency", user_currency),
                 category=parsed.get("category", "أخرى"),
                 description=parsed.get("description"),
                 date=date.fromisoformat(parsed["date"]),
@@ -163,6 +201,43 @@ class ExpenseService:
     # REPORTS
     # ═══════════════════════════════════════════════════════
 
+    async def get_yesterday_summary(self, user_id: int) -> str:
+        """Morning report: summary of yesterday's transactions."""
+        yesterday = date.today() - timedelta(days=1)
+        expenses = await self.repo.get_by_date_range(user_id, yesterday, yesterday)
+
+        months_ar = [
+            "", "يناير", "فبراير", "مارس", "أبريل", "مايو", "يونيو",
+            "يوليو", "أغسطس", "سبتمبر", "أكتوبر", "نوفمبر", "ديسمبر",
+        ]
+        date_str = f"{yesterday.day} {months_ar[yesterday.month]}"
+
+        if not expenses:
+            return (
+                f"☀️ <b>صباح الخير!</b>\n"
+                f"ملخص أمس ({date_str}):\n\n"
+                f"📭 مفيش معاملات مسجلة أمس."
+            )
+
+        exp_totals = _totals_by_currency(expenses, "expense")
+        inc_totals = _totals_by_currency(expenses, "income")
+
+        lines = [
+            f"☀️ <b>صباح الخير!</b>",
+            f"ملخص أمس ({date_str}):\n",
+            f"💸 المصاريف: <b>{_fmt_totals(exp_totals) if exp_totals else '0.00'}</b>",
+        ]
+        if inc_totals:
+            lines.append(f"💰 الدخل: <b>{_fmt_totals(inc_totals)}</b>")
+        lines.append(f"📝 عدد المعاملات: {len(expenses)}\n")
+
+        for e in expenses:
+            sign = "🔴" if e.is_expense() else "🟢"
+            desc = f" — {e.description}" if e.description else ""
+            lines.append(f"  {sign} {e.category}: {_fmt(e.amount, e.currency)}{desc}")
+
+        return "\n".join(lines)
+
     async def get_today_summary(self, user_id: int) -> str:
         """Get a summary of today's transactions."""
         today = date.today()
@@ -170,10 +245,12 @@ class ExpenseService:
         if not expenses:
             return "📭 مفيش معاملات النهاردة."
 
-        total_exp = sum(e.amount for e in expenses if e.is_expense())
-        total_inc = sum(e.amount for e in expenses if e.is_income())
-        currencies = await self.repo.get_currencies_in_range(user_id, today, today)
-        cur = currencies[0] if currencies else ""
+        exp_totals = _totals_by_currency(expenses, "expense")
+        inc_totals = _totals_by_currency(expenses, "income")
+        net_totals = {
+            cur: inc_totals.get(cur, 0) - exp_totals.get(cur, 0)
+            for cur in set(list(exp_totals.keys()) + list(inc_totals.keys()))
+        }
 
         lines = [f"📊 <b>ملخص النهاردة</b> ({today}):\n"]
         for e in expenses:
@@ -181,26 +258,35 @@ class ExpenseService:
             desc = f" — {e.description}" if e.description else ""
             lines.append(f"  {sign} {e.category}: {_fmt(e.amount, e.currency)}{desc}")
 
-        lines.append(f"\n💸 إجمالي المصاريف: <b>{_fmt(total_exp, cur)}</b>")
-        if total_inc > 0:
-            lines.append(f"💰 إجمالي الدخل: <b>{_fmt(total_inc, cur)}</b>")
-        lines.append(f"📈 الصافي: <b>{_fmt(total_inc - total_exp, cur)}</b>")
+        lines.append(f"\n💸 إجمالي المصاريف: <b>{_fmt_totals(exp_totals)}</b>")
+        if inc_totals:
+            lines.append(f"💰 إجمالي الدخل: <b>{_fmt_totals(inc_totals)}</b>")
+        lines.append(f"📈 الصافي: <b>{_fmt_totals(net_totals)}</b>")
         lines.append(f"\n📝 عدد المعاملات: {len(expenses)}")
-        return "\n".join(lines) + self._currency_warning(currencies)
+        return "\n".join(lines)
 
     async def get_month_summary(self, user_id: int, year: Optional[int] = None, month: Optional[int] = None) -> str:
-        """Get a summary of a specific month's transactions."""
+        """Get a summary of a specific month's transactions, grouped by currency."""
         today = date.today()
         y = year or today.year
         m = month or today.month
 
         start, end = _month_bounds(y, m)
-        days_passed = min((today - start).days + 1, (end - start).days + 1)
+        expenses = await self.repo.get_by_date_range(user_id, start, end)
 
-        totals = await self.repo.get_monthly_total(user_id, y, m)
-        categories = await self.repo.get_category_summary(user_id, start, end)
-        currencies = await self.repo.get_currencies_in_range(user_id, start, end)
-        cur = currencies[0] if currencies else ""
+        exp_totals = _totals_by_currency(expenses, "expense")
+        inc_totals = _totals_by_currency(expenses, "income")
+        net_totals = {
+            cur: inc_totals.get(cur, 0) - exp_totals.get(cur, 0)
+            for cur in set(list(exp_totals.keys()) + list(inc_totals.keys()))
+        }
+
+        # Group by (category, currency)
+        cat_totals: dict[tuple[str, str], float] = {}
+        for e in expenses:
+            if e.is_expense():
+                key = (e.category, e.currency)
+                cat_totals[key] = cat_totals.get(key, 0) + e.amount
 
         months_ar = [
             "", "يناير", "فبراير", "مارس", "أبريل", "مايو", "يونيو",
@@ -208,28 +294,18 @@ class ExpenseService:
         ]
 
         lines = [f"📊 <b>ملخص شهر {months_ar[m]} {y}</b>\n"]
-        lines.append(f"💸 إجمالي المصاريف: <b>{_fmt(totals['total_expenses'], cur)}</b>")
-        if totals['total_income'] > 0:
-            lines.append(f"💰 إجمالي الدخل: <b>{_fmt(totals['total_income'], cur)}</b>")
-        lines.append(f"📈 الصافي: <b>{_fmt(totals['net'], cur)}</b>")
-
-        # Daily average
-        if days_passed > 0 and totals['total_expenses'] > 0:
-            daily_avg = totals['total_expenses'] / days_passed
-            lines.append(f"📊 المعدل اليومي: {_fmt(daily_avg, cur)}")
+        lines.append(f"💸 إجمالي المصاريف: <b>{_fmt_totals(exp_totals) if exp_totals else '0.00'}</b>")
+        if inc_totals:
+            lines.append(f"💰 إجمالي الدخل: <b>{_fmt_totals(inc_totals)}</b>")
+        lines.append(f"📈 الصافي: <b>{_fmt_totals(net_totals) if net_totals else '0.00'}</b>")
         lines.append("")
 
-        if categories:
-            total_exp = totals['total_expenses']
+        if cat_totals:
             lines.append("📂 <b>توزيع المصاريف:</b>")
-            for cat in categories:
-                pct = (cat["total"] / total_exp * 100) if total_exp > 0 else 0
-                bar_len = int(pct / 5)
-                bar = "▓" * bar_len + "░" * (20 - bar_len)
-                lines.append(f"  • {cat['category']}: {_fmt(cat['total'], cur)} ({pct:.0f}%)")
-                lines.append(f"    {bar}")
+            for (cat, cur), total in sorted(cat_totals.items(), key=lambda x: -x[1]):
+                lines.append(f"  • {cat}: {_fmt(total, cur)}")
 
-        return "\n".join(lines) + self._currency_warning(currencies)
+        return "\n".join(lines)
 
     async def get_week_summary(self, user_id: int) -> str:
         """Get a summary of the last 7 days."""
@@ -240,46 +316,57 @@ class ExpenseService:
         if not expenses:
             return "📭 مفيش معاملات في آخر ٧ أيام."
 
-        total_exp = sum(e.amount for e in expenses if e.is_expense())
-        total_inc = sum(e.amount for e in expenses if e.is_income())
+        exp_totals = _totals_by_currency(expenses, "expense")
+        inc_totals = _totals_by_currency(expenses, "income")
+        net_totals = {
+            cur: inc_totals.get(cur, 0) - exp_totals.get(cur, 0)
+            for cur in set(list(exp_totals.keys()) + list(inc_totals.keys()))
+        }
         exp_count = sum(1 for e in expenses if e.is_expense())
 
-        # Group by category
-        cat_totals = {}
+        # Group by (category, currency)
+        cat_totals: dict[tuple[str, str], float] = {}
         for e in expenses:
             if e.is_expense():
-                cat_totals[e.category] = cat_totals.get(e.category, 0) + e.amount
-
-        currencies = await self.repo.get_currencies_in_range(user_id, week_start, today)
-        cur = currencies[0] if currencies else ""
-
-        daily_avg = total_exp / 7
+                key = (e.category, e.currency)
+                cat_totals[key] = cat_totals.get(key, 0) + e.amount
 
         lines = [f"📊 <b>ملخص آخر ٧ أيام</b> ({week_start} → {today})\n"]
-        lines.append(f"💸 إجمالي المصاريف: <b>{_fmt(total_exp, cur)}</b>")
-        if total_inc > 0:
-            lines.append(f"💰 إجمالي الدخل: <b>{_fmt(total_inc, cur)}</b>")
-        lines.append(f"📈 الصافي: <b>{_fmt(total_inc - total_exp, cur)}</b>")
-        lines.append(f"📊 المعدل اليومي: {_fmt(daily_avg, cur)}")
+        lines.append(f"💸 إجمالي المصاريف: <b>{_fmt_totals(exp_totals)}</b>")
+        if inc_totals:
+            lines.append(f"💰 إجمالي الدخل: <b>{_fmt_totals(inc_totals)}</b>")
+        lines.append(f"📈 الصافي: <b>{_fmt_totals(net_totals)}</b>")
         lines.append(f"📝 عدد المعاملات: {exp_count}")
         lines.append("")
 
         if cat_totals:
             lines.append("📂 <b>توزيع المصاريف:</b>")
-            for cat, total in sorted(cat_totals.items(), key=lambda x: -x[1]):
-                pct = (total / total_exp * 100) if total_exp > 0 else 0
-                lines.append(f"  • {cat}: {_fmt(total, cur)} ({pct:.0f}%)")
+            for (cat, cur), total in sorted(cat_totals.items(), key=lambda x: -x[1]):
+                lines.append(f"  • {cat}: {_fmt(total, cur)}")
 
-        return "\n".join(lines) + self._currency_warning(currencies)
+        return "\n".join(lines)
 
     async def get_balance(self, user_id: int) -> str:
-        """Get overall balance (all-time)."""
-        result = await self.repo.get_overall_balance(user_id)
+        """Get overall balance (all-time), grouped by currency."""
+        all_expenses = await self.repo.get_by_date_range(user_id, date(1970, 1, 1), date.today())
 
         today = date.today()
-        month_totals = await self.repo.get_monthly_total(user_id, today.year, today.month)
-        all_currencies = await self.repo.get_all_currencies(user_id)
-        cur = all_currencies[0] if all_currencies else ""
+        month_start, month_end = _month_bounds(today.year, today.month)
+        month_expenses = [e for e in all_expenses if month_start <= e.date <= month_end]
+
+        exp_all = _totals_by_currency(all_expenses, "expense")
+        inc_all = _totals_by_currency(all_expenses, "income")
+        bal_all = {
+            cur: inc_all.get(cur, 0) - exp_all.get(cur, 0)
+            for cur in set(list(exp_all.keys()) + list(inc_all.keys()))
+        }
+
+        exp_month = _totals_by_currency(month_expenses, "expense")
+        inc_month = _totals_by_currency(month_expenses, "income")
+        net_month = {
+            cur: inc_month.get(cur, 0) - exp_month.get(cur, 0)
+            for cur in set(list(exp_month.keys()) + list(inc_month.keys()))
+        }
 
         months_ar = [
             "", "يناير", "فبراير", "مارس", "أبريل", "مايو", "يونيو",
@@ -287,19 +374,16 @@ class ExpenseService:
         ]
 
         lines = ["🏦 <b>رصيد الحساب</b>\n"]
-        lines.append(f"💰 إجمالي الدخل: {_fmt(result['total_income'], cur)}")
-        lines.append(f"💸 إجمالي المصاريف: {_fmt(result['total_expenses'], cur)}")
-
-        balance = result["balance"]
-        icon = "📈" if balance >= 0 else "📉"
-        lines.append(f"\n{icon} <b>الرصيد الكلي: {_fmt(balance, cur)}</b>")
+        lines.append(f"💰 إجمالي الدخل: {_fmt_totals(inc_all) if inc_all else '0.00'}")
+        lines.append(f"💸 إجمالي المصاريف: {_fmt_totals(exp_all) if exp_all else '0.00'}")
+        lines.append(f"\n📊 <b>الرصيد الكلي:</b> {_fmt_totals(bal_all) if bal_all else '0.00'}")
 
         lines.append(f"\n📅 <b>شهر {months_ar[today.month]} {today.year}:</b>")
-        lines.append(f"  💰 دخل: {_fmt(month_totals['total_income'], cur)}")
-        lines.append(f"  💸 مصاريف: {_fmt(month_totals['total_expenses'], cur)}")
-        lines.append(f"  📈 صافي: {_fmt(month_totals['net'], cur)}")
+        lines.append(f"  💰 دخل: {_fmt_totals(inc_month) if inc_month else '0.00'}")
+        lines.append(f"  💸 مصاريف: {_fmt_totals(exp_month) if exp_month else '0.00'}")
+        lines.append(f"  📈 صافي: {_fmt_totals(net_month) if net_month else '0.00'}")
 
-        return "\n".join(lines) + self._currency_warning(all_currencies)
+        return "\n".join(lines)
 
     async def get_last_expenses(self, user_id: int, n: int = 5) -> str:
         """Get the last N transactions for a user."""
