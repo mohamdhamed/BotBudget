@@ -162,19 +162,24 @@ def _call_gemini(model_name: str, system_prompt: str, user_text: str) -> str:
 
 def _parse_with_fallback(system_prompt: str, user_text: str, context_name: str) -> str:
     """
-    Try Gemini first; fall back to Groq on quota exhaustion.
+    Try Gemini first; fall back to Groq on any Gemini failure.
     Returns raw AI response text.
     """
-    try:
-        raw = _call_gemini("gemini-2.0-flash", system_prompt, user_text)
-        logger.debug("Used Gemini for %s", context_name)
-        return raw
-    except ResourceExhausted:
-        if not GROQ_API_KEY:
-            logger.error("Gemini quota exceeded and no GROQ_API_KEY configured.")
-            raise
-        logger.warning("Gemini quota exceeded — falling back to Groq for %s", context_name)
-        return _call_groq(system_prompt, user_text)
+    if GEMINI_API_KEY:
+        try:
+            raw = _call_gemini("gemini-2.0-flash", system_prompt, user_text)
+            logger.debug("Used Gemini for %s", context_name)
+            return raw
+        except Exception as e:
+            if not GROQ_API_KEY:
+                raise
+            logger.warning("Gemini failed (%s) — falling back to Groq for %s", type(e).__name__, context_name)
+
+    if not GROQ_API_KEY:
+        raise RuntimeError("No AI provider available. Set GEMINI_API_KEY or GROQ_API_KEY.")
+
+    logger.debug("Used Groq for %s", context_name)
+    return _call_groq(system_prompt, user_text)
 
 
 def parse_transaction(text: str, user_currency: str = "EUR") -> dict:
