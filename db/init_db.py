@@ -68,10 +68,25 @@ CREATE TABLE IF NOT EXISTS subscriptions (
     upgraded_by     BIGINT
 );
 
+-- Allowed users: dynamic whitelist managed via admin commands
+CREATE TABLE IF NOT EXISTS allowed_users (
+    user_id     BIGINT PRIMARY KEY,
+    first_name  VARCHAR(100),
+    added_by    BIGINT,
+    added_at    TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Rate limit log: tracks message frequency per user
+CREATE TABLE IF NOT EXISTS rate_limit_log (
+    user_id     BIGINT NOT NULL,
+    timestamp   TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
 -- Indexes for faster queries
 CREATE INDEX IF NOT EXISTS idx_expenses_user_date ON expenses(user_id, date);
 CREATE INDEX IF NOT EXISTS idx_expenses_category ON expenses(user_id, category);
 CREATE INDEX IF NOT EXISTS idx_recurring_due ON recurring_payments(next_due_date) WHERE active = TRUE;
+CREATE INDEX IF NOT EXISTS idx_rate_limit_user_ts ON rate_limit_log(user_id, timestamp);
 """
 
 
