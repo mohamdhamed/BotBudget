@@ -97,8 +97,9 @@ async def handle_text_message(update: Update, context: ContextTypes.DEFAULT_TYPE
     if not text:
         return
 
-    await user_repo.ensure_user(user.id, user.first_name)
-    parsed = parse_transaction(text)
+    db_user = await user_repo.ensure_user(user.id, user.first_name)
+    user_currency = db_user.get("currency", "EUR")
+    parsed = parse_transaction(text, user_currency)
 
     if "error" in parsed:
         await update.message.reply_text(f"🤔 {parsed.get('question', 'حاول تاني.')}")
@@ -111,7 +112,8 @@ async def handle_text_message(update: Update, context: ContextTypes.DEFAULT_TYPE
         )
         return
 
-    context.user_data["pending_expense"] = {**parsed, "raw_text": text}
+    tx_currency = parsed.get("currency", user_currency)
+    context.user_data["pending_expense"] = {**parsed, "raw_text": text, "currency": tx_currency}
 
     tx_type = "مصروف" if parsed.get("type") == "expense" else "دخل"
     emoji = "💸" if parsed.get("type") == "expense" else "💰"
@@ -120,7 +122,7 @@ async def handle_text_message(update: Update, context: ContextTypes.DEFAULT_TYPE
     preview = (
         f"{emoji} *تأكيد {tx_type}:*\n"
         f"  📂 الفئة: {parsed.get('category', 'أخرى')}\n"
-        f"  💶 المبلغ: {parsed.get('amount', 0):.2f}€\n"
+        f"  💶 المبلغ: {parsed.get('amount', 0):.2f} {tx_currency}\n"
         f"  📅 التاريخ: {parsed.get('date', date.today())}"
         f"{note}"
     )
