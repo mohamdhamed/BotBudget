@@ -17,6 +17,7 @@ from telegram.ext import (
     CallbackQueryHandler,
     CommandHandler,
     MessageHandler,
+    PicklePersistence,
     filters,
 )
 
@@ -211,7 +212,8 @@ def main() -> None:
 
     # ── 1. Build the Telegram application ─────────────────
     logger.info("Starting Telegram bot...")
-    app = Application.builder().token(TELEGRAM_BOT_TOKEN).post_init(post_init).build()
+    persistence = PicklePersistence(filepath="bot_persistence.pkl")
+    app = Application.builder().token(TELEGRAM_BOT_TOKEN).persistence(persistence).post_init(post_init).build()
 
     # ── 2. ConversationHandlers (must be registered FIRST) ──
     app.add_handler(edit_conversation)
