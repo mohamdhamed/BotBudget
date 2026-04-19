@@ -50,6 +50,20 @@ class UserRepository:
             logger.error(f"Failed to ensure user {telegram_id}: {e}")
             raise
 
+    async def set_currency(self, telegram_id: int, currency: str) -> bool:
+        """Update the user's preferred currency."""
+        sql = "UPDATE users SET currency = %s WHERE telegram_id = %s;"
+        pool = get_pool()
+        try:
+            async with pool.connection() as conn:
+                async with conn.cursor() as cur:
+                    await cur.execute(sql, (currency, telegram_id))
+                await conn.commit()
+            return True
+        except Exception as e:
+            logger.error(f"Failed to set currency for {telegram_id}: {e}")
+            return False
+
     async def get_by_telegram_id(self, telegram_id: int) -> Optional[dict]:
         """
         Fetch a user by their Telegram ID.

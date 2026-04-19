@@ -61,6 +61,7 @@ HELP_TEXT = """
 /export\\_excel - تصدير Excel
 
 *🔧 أخرى:*
+/currency - تغيير العملة الافتراضية
 /plan - خطتك الحالية
 /upgrade\\_info - معلومات الترقية
 /about - عن البوت

@@ -29,6 +29,7 @@ _SYSTEM_PROMPT = """أنت مساعد مالي شخصي ذكي. مهمتك ال�
 (عامية أو فصحى) إلى JSON يمثل معاملة مالية.
 
 تاريخ اليوم: {today}
+عملة المستخدم الافتراضية: {currency}
 
 ## قواعد التحليل:
 
@@ -39,28 +40,33 @@ _SYSTEM_PROMPT = """أنت مساعد مالي شخصي ذكي. مهمتك ال�
 
 2. **المبلغ (amount):** استخرج الرقم سواء بالأرقام العربية (٥٠) أو الإنجليزية (50)
 
-3. **الفئة (category):** اختر الأنسب من:
+3. **العملة (currency):** استخرج العملة من النص إذا ذُكرت صراحةً:
+   - رموز: $→USD, €→EUR, £→GBP, ج.م/جنيه→EGP, ر.س/ريال→SAR, د.إ/درهم→AED, د.ك/دينار→KWD
+   - كلمات: "دولار"→USD, "يورو"→EUR, "جنيه"→EGP, "ريال"→SAR, "درهم"→AED, "دينار"→KWD, "جنيه إسترليني"→GBP
+   - إذا ما ذُكرت عملة → استخدم عملة المستخدم الافتراضية: {currency}
+
+4. **الفئة (category):** اختر الأنسب من:
    طعام، مواصلات، سوبرماركت، إيجار، فواتير، اشتراكات، ترفيه، صحة، تعليم، ملابس، هدايا، راتب، تحويل، مطعم، كافيه، بنزين، تأمين، أخرى
 
-4. **التاريخ (date):** إذا ما ذكرش تاريخ → استخدم اليوم. "امبارح/أمس" → أمس. "أول امبارح" → قبل يومين
+5. **التاريخ (date):** إذا ما ذكرش تاريخ → استخدم اليوم. "امبارح/أمس" → أمس. "أول امبارح" → قبل يومين
 
-5. **الوصف (description):** وصف قصير بالعربي
+6. **الوصف (description):** وصف قصير بالعربي
 
 ## أمثلة:
-- "صرفت ٥٠ سوبرماركت" → {"type":"expense","amount":50,"category":"سوبرماركت","description":"مشتريات سوبرماركت","date":"{today}"}
-- "جالي راتب ٢٠٠٠" → {"type":"income","amount":2000,"category":"راتب","description":"راتب شهري","date":"{today}"}
-- "٣٥٠ دفعة من الراتب" → {"type":"income","amount":350,"category":"راتب","description":"دفعة من الراتب","date":"{today}"}
-- "دفعت إيجار ٨٠٠" → {"type":"expense","amount":800,"category":"إيجار","description":"إيجار","date":"{today}"}
-- "100 بنزين" → {"type":"expense","amount":100,"category":"بنزين","description":"بنزين","date":"{today}"}
-- "حولولي 500" → {"type":"income","amount":500,"category":"تحويل","description":"تحويل مالي","date":"{today}"}
+- "صرفت ٥٠ سوبرماركت" → {{"type":"expense","amount":50,"currency":"{currency}","category":"سوبرماركت","description":"مشتريات سوبرماركت","date":"{today}","confidence":0.95}}
+- "جالي راتب ٢٠٠٠ دولار" → {{"type":"income","amount":2000,"currency":"USD","category":"راتب","description":"راتب شهري","date":"{today}","confidence":1.0}}
+- "دفعت إيجار ٨٠٠ يورو" → {{"type":"expense","amount":800,"currency":"EUR","category":"إيجار","description":"إيجار","date":"{today}","confidence":1.0}}
+- "100 بنزين" → {{"type":"expense","amount":100,"currency":"{currency}","category":"بنزين","description":"بنزين","date":"{today}","confidence":0.9}}
+- "صرفت $30 نتفليكس" → {{"type":"expense","amount":30,"currency":"USD","category":"اشتراكات","description":"نتفليكس","date":"{today}","confidence":1.0}}
+- "٢٠٠ جنيه سوبرماركت" → {{"type":"expense","amount":200,"currency":"EGP","category":"سوبرماركت","description":"مشتريات سوبرماركت","date":"{today}","confidence":1.0}}
 
 ## التنسيق:
 أرجع JSON فقط بدون أي شرح أو markdown:
-{"type":"expense|income","amount":<رقم>,"category":"<فئة>","description":"<وصف>","date":"YYYY-MM-DD","confidence":<0.0-1.0>}
+{{"type":"expense|income","amount":<رقم>,"currency":"<رمز ISO>","category":"<فئة>","description":"<وصف>","date":"YYYY-MM-DD","confidence":<0.0-1.0>}}
 
 حقل confidence: مدى ثقتك في التحليل (1.0 = متأكد تماماً، 0.5 = محتمل، 0.3 = تخمين)
 
-إذا مش واضحة خالص: {"error":"unclear","question":"<سؤال توضيحي بالعربي>"}
+إذا مش واضحة خالص: {{"error":"unclear","question":"<سؤال توضيحي بالعربي>"}}
 """
 
 _RECURRING_PROMPT_TEMPLATE = """أنت مساعد مالي شخصي. حلل رسالة المستخدم العربية وحولها لـ JSON يمثل دفعة متكررة.
@@ -171,12 +177,12 @@ def _parse_with_fallback(system_prompt: str, user_text: str, context_name: str) 
         return _call_groq(system_prompt, user_text)
 
 
-def parse_transaction(text: str) -> dict:
+def parse_transaction(text: str, user_currency: str = "EUR") -> dict:
     """
     Parse a natural-language Arabic financial message into structured data.
 
     Returns:
-        Dict with keys: type, amount, category, description, date, confidence.
+        Dict with keys: type, amount, currency, category, description, date, confidence.
         OR dict with keys: error, question (if unclear).
     """
     text = _sanitize_input(text)
@@ -184,7 +190,7 @@ def parse_transaction(text: str) -> dict:
         return {"error": "empty", "question": "الرسالة فاضية. اكتب المعاملة المالية."}
 
     today = date.today().isoformat()
-    system_prompt = _SYSTEM_PROMPT.replace("{today}", today)
+    system_prompt = _SYSTEM_PROMPT.replace("{today}", today).replace("{currency}", user_currency)
 
     try:
         raw = _parse_with_fallback(system_prompt, text, "parse_transaction")

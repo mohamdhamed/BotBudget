@@ -12,6 +12,7 @@ from typing import Optional
 from ai.gemini_parser import parse_transaction
 from models.expense import Expense
 from repositories.expense_repo import ExpenseRepository
+from repositories.user_repo import UserRepository
 from utils.logger import get_logger
 
 logger = get_logger(__name__)
@@ -44,6 +45,7 @@ class ExpenseService:
 
     def __init__(self):
         self.repo = ExpenseRepository()
+        self.user_repo = UserRepository()
 
     async def _get_currency(self, user_id: int, start: date = None, end: date = None) -> str:
         """Get user's primary currency from their transactions."""
@@ -72,7 +74,10 @@ class ExpenseService:
         Returns:
             Dict with 'success' and 'message' keys, or 'error' and 'question'.
         """
-        parsed = parse_transaction(text)
+        user = await self.user_repo.get_by_telegram_id(user_id)
+        user_currency = user["currency"] if user else "EUR"
+
+        parsed = parse_transaction(text, user_currency)
 
         # If AI couldn't parse, return the clarifying question
         if "error" in parsed:
@@ -83,6 +88,7 @@ class ExpenseService:
                 user_id=user_id,
                 type=parsed["type"],
                 amount=float(parsed["amount"]),
+                currency=parsed.get("currency", user_currency),
                 category=parsed.get("category", "أخرى"),
                 description=parsed.get("description"),
                 date=date.fromisoformat(parsed["date"]),
@@ -118,11 +124,15 @@ class ExpenseService:
         Returns:
             Same format as add_from_text.
         """
+        user = await self.user_repo.get_by_telegram_id(user_id)
+        user_currency = user["currency"] if user else "EUR"
+
         try:
             expense = Expense(
                 user_id=user_id,
                 type=parsed["type"],
                 amount=float(parsed["amount"]),
+                currency=parsed.get("currency", user_currency),
                 category=parsed.get("category", "أخرى"),
                 description=parsed.get("description"),
                 date=date.fromisoformat(parsed["date"]),

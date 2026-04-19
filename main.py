@@ -69,6 +69,7 @@ from handlers.budget_handler import (
     handle_budget_cancel,
     budget_set_conversation,
 )
+from handlers.currency_handler import currency_command, currency_callback
 from repositories.allowed_users_repo import AllowedUsersRepository
 from services.recurring_service import RecurringService
 from services.expense_service import ExpenseService
@@ -160,6 +161,7 @@ async def set_bot_commands(application: Application) -> None:
         BotCommand("insights", "🧠 تحليل ذكي وتوقعات"),
         BotCommand("export_csv", "📄 تصدير CSV"),
         BotCommand("export_excel", "📊 تصدير Excel"),
+        BotCommand("currency", "💱 تغيير العملة الافتراضية"),
         BotCommand("plan", "📋 خطتك الحالية"),
         BotCommand("upgrade_info", "🌟 معلومات الترقية"),
         BotCommand("about", "ℹ️ عن البوت"),
@@ -239,6 +241,7 @@ def main() -> None:
     app.add_handler(CommandHandler("balance", balance_command))
     app.add_handler(CommandHandler("last", last_command))
     app.add_handler(CommandHandler("undo", undo_command))
+    app.add_handler(CommandHandler("currency", currency_command))
     app.add_handler(CommandHandler("plan", plan_command))
     app.add_handler(CommandHandler("upgrade_info", upgrade_info_command))
     app.add_handler(CommandHandler("terms", terms_command))
@@ -270,6 +273,7 @@ def main() -> None:
     app.add_handler(CallbackQueryHandler(handle_rec_toggle, pattern=r"^rectoggle_\d+$"))
     app.add_handler(CallbackQueryHandler(handle_rec_cancel, pattern="^rec_cancel$"))
     app.add_handler(CallbackQueryHandler(handle_rec_add_hint, pattern="^rec_add_hint$"))
+    app.add_handler(CallbackQueryHandler(currency_callback, pattern=r"^setcur_"))
 
     # ── 6. Schedule jobs ──────────────────────────────────
     job_queue = app.job_queue

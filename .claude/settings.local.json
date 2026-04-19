@@ -29,7 +29,9 @@
       "Bash(awk -F'\"' '{print $2}')",
       "Bash(find /d/BotBudget/handlers -name \"*.py\" -exec grep -h \"CommandHandler\\(\" {} \\\\;)",
       "Read(//tmp/**)",
-      "Bash(grep -B1 \"pass$\")"
+      "Bash(grep -B1 \"pass$\")",
+      "Bash(grep -E \"\\\\.py$\")",
+      "Bash(git checkout *)"
     ]
   }
 }
