@@ -53,3 +53,7 @@ RATE_LIMIT_WINDOW_SECONDS: int = int(os.getenv("RATE_LIMIT_WINDOW_SECONDS", "60"
 
 # ── Currency ──────────────────────────────────────────────
 DEFAULT_CURRENCY: str = "EUR"
+
+# ── Environment ───────────────────────────────────────────
+ENVIRONMENT: str = os.getenv("ENVIRONMENT", "production")
+IS_STAGING: bool = ENVIRONMENT == "staging"

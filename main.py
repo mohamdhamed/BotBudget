@@ -20,7 +20,7 @@ from telegram.ext import (
     filters,
 )
 
-from config import TELEGRAM_BOT_TOKEN
+from config import TELEGRAM_BOT_TOKEN, IS_STAGING
 from db.connection import init_pool, close_pool
 from db.init_db import create_tables
 from handlers.admin_handler import (
@@ -105,6 +105,26 @@ async def send_weekly_report(context) -> None:
             logger.info(f"Sent weekly report to user {user_id}")
         except Exception as e:
             logger.error(f"Failed to send weekly report to {user_id}: {e}")
+
+
+async def test_daily_command(update, context) -> None:
+    """[STAGING ONLY] Trigger the daily report immediately."""
+    user_id = update.effective_user.id
+    summary = await ExpenseService().get_yesterday_summary(user_id)
+    await update.message.reply_text(summary, parse_mode="HTML")
+
+
+async def test_weekly_command(update, context) -> None:
+    """[STAGING ONLY] Trigger the weekly report immediately."""
+    user_id = update.effective_user.id
+    summary = await ExpenseService().get_week_summary(user_id)
+    header = (
+        "📬 ━━━━━━━━━━━━━━\n"
+        "   <b>التقرير الأسبوعي</b>\n"
+        "━━━━━━━━━━━━━━ 📬\n\n"
+    )
+    footer = "\n\n✨ أسبوع سعيد! — BotBudget"
+    await update.message.reply_text(header + summary + footer, parse_mode="HTML")
 
 
 async def send_daily_report(context) -> None:
@@ -269,6 +289,12 @@ def main() -> None:
     app.add_handler(CommandHandler("last", last_command))
     app.add_handler(CommandHandler("undo", undo_command))
     app.add_handler(CommandHandler("currency", currency_command))
+
+    # Staging-only test commands
+    if IS_STAGING:
+        app.add_handler(CommandHandler("test_daily", test_daily_command))
+        app.add_handler(CommandHandler("test_weekly", test_weekly_command))
+        logger.info("Staging mode: registered /test_daily and /test_weekly commands")
     app.add_handler(CommandHandler("plan", plan_command))
     app.add_handler(CommandHandler("upgrade_info", upgrade_info_command))
     app.add_handler(CommandHandler("terms", terms_command))
