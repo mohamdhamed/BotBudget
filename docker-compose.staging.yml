@@ -8,7 +8,6 @@ services:
     network_mode: host
     volumes:
       - ./exports_staging:/app/exports
-      - ./bot_persistence_staging.pkl:/app/bot_persistence.pkl
     deploy:
       resources:
         limits:
