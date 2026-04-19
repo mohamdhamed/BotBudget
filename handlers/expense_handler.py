@@ -144,7 +144,6 @@ async def handle_expense_callback(update: Update, context: ContextTypes.DEFAULT_
         return
 
     if query.data == "confirm_expense":
-        logger.info(f"user_data keys for {user.id}: {list(context.user_data.keys())}")
         pending = context.user_data.pop("pending_expense", None)
         if not pending:
             await query.edit_message_text("⚠️ انتهت صلاحية التأكيد. أعد إرسال الرسالة.")
