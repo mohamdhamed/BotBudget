@@ -87,17 +87,44 @@ async def send_weekly_report(context) -> None:
     from config import ALLOWED_USER_IDS
     expense_service = ExpenseService()
 
+    header = (
+        "📬 ━━━━━━━━━━━━━━\n"
+        "   <b>التقرير الأسبوعي</b>\n"
+        "━━━━━━━━━━━━━━ 📬\n\n"
+    )
+    footer = "\n\n✨ أسبوع سعيد! — BotBudget"
+
     for user_id in ALLOWED_USER_IDS:
         try:
             summary = await expense_service.get_week_summary(user_id)
             await context.bot.send_message(
                 chat_id=user_id,
-                text=f"📬 *التقرير الأسبوعي*\n\n{summary}",
-                parse_mode="Markdown",
+                text=header + summary + footer,
+                parse_mode="HTML",
             )
             logger.info(f"Sent weekly report to user {user_id}")
         except Exception as e:
             logger.error(f"Failed to send weekly report to {user_id}: {e}")
+
+
+async def send_daily_report(context) -> None:
+    """
+    Scheduled job: send morning summary of yesterday's transactions.
+    Runs daily at 08:00 AM.
+    """
+    from config import ALLOWED_USER_IDS
+    expense_service = ExpenseService()
+
+    for user_id in ALLOWED_USER_IDS:
+        try:
+            summary = await expense_service.get_yesterday_summary(user_id)
+            await context.bot.send_message(
+                chat_id=user_id,
+                text=summary,
+                parse_mode="HTML",
+            )
+        except Exception as e:
+            logger.error(f"Failed to send daily report to {user_id}: {e}")
 
 
 async def send_reminders(context) -> None:
@@ -279,6 +306,11 @@ def main() -> None:
     job_queue = app.job_queue
     if job_queue:
         job_queue.run_daily(
+            send_daily_report,
+            time=dt_time(hour=8, minute=0),
+            name="daily_report",
+        )
+        job_queue.run_daily(
             send_reminders,
             time=dt_time(hour=9, minute=0),
             name="daily_reminders",
@@ -297,7 +329,7 @@ def main() -> None:
             first=60,
             name="rate_limit_cleanup",
         )
-        logger.info("Scheduled daily reminders (09:00) + weekly report (Sunday 20:00) + rate limit cleanup (hourly)")
+        logger.info("Scheduled daily report (08:00) + recurring reminders (09:00) + weekly report (Sunday 20:00) + rate limit cleanup (hourly)")
 
     # ── 7. Start polling ──────────────────────────────────
     logger.info("🚀 BotBudget is running! Press Ctrl+C to stop.")

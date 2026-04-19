@@ -201,6 +201,43 @@ class ExpenseService:
     # REPORTS
     # ═══════════════════════════════════════════════════════
 
+    async def get_yesterday_summary(self, user_id: int) -> str:
+        """Morning report: summary of yesterday's transactions."""
+        yesterday = date.today() - timedelta(days=1)
+        expenses = await self.repo.get_by_date_range(user_id, yesterday, yesterday)
+
+        months_ar = [
+            "", "يناير", "فبراير", "مارس", "أبريل", "مايو", "يونيو",
+            "يوليو", "أغسطس", "سبتمبر", "أكتوبر", "نوفمبر", "ديسمبر",
+        ]
+        date_str = f"{yesterday.day} {months_ar[yesterday.month]}"
+
+        if not expenses:
+            return (
+                f"☀️ <b>صباح الخير!</b>\n"
+                f"ملخص أمس ({date_str}):\n\n"
+                f"📭 مفيش معاملات مسجلة أمس."
+            )
+
+        exp_totals = _totals_by_currency(expenses, "expense")
+        inc_totals = _totals_by_currency(expenses, "income")
+
+        lines = [
+            f"☀️ <b>صباح الخير!</b>",
+            f"ملخص أمس ({date_str}):\n",
+            f"💸 المصاريف: <b>{_fmt_totals(exp_totals) if exp_totals else '0.00'}</b>",
+        ]
+        if inc_totals:
+            lines.append(f"💰 الدخل: <b>{_fmt_totals(inc_totals)}</b>")
+        lines.append(f"📝 عدد المعاملات: {len(expenses)}\n")
+
+        for e in expenses:
+            sign = "🔴" if e.is_expense() else "🟢"
+            desc = f" — {e.description}" if e.description else ""
+            lines.append(f"  {sign} {e.category}: {_fmt(e.amount, e.currency)}{desc}")
+
+        return "\n".join(lines)
+
     async def get_today_summary(self, user_id: int) -> str:
         """Get a summary of today's transactions."""
         today = date.today()
