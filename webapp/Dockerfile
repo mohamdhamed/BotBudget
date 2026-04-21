@@ -7,7 +7,7 @@ COPY . .
 RUN npm run build
 
 FROM nginx:alpine
-COPY nginx.conf /etc/nginx/conf.d/default.conf
+COPY nginx.conf.template /etc/nginx/templates/default.conf.template
 COPY --from=build /app/dist /usr/share/nginx/html/app
+ENV WEBAPP_PORT=5174
 EXPOSE 5174
-CMD ["nginx", "-g", "daemon off;"]

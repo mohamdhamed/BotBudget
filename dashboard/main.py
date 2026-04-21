@@ -58,7 +58,11 @@ app.mount(
 
 # Routers
 # Scoped CORS: only for Mini App JSON routes under /api/miniapp
-_MINIAPP_ORIGINS = {"https://app.botbudget.it", "http://localhost:5173"}
+_MINIAPP_ORIGINS = {
+    "https://app.botbudget.it",
+    "https://app-staging.botbudget.it",
+    "http://localhost:5173",
+}
 
 
 class MiniAppCORSMiddleware(BaseHTTPMiddleware):

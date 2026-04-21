@@ -29,3 +29,19 @@ services:
         limits:
           memory: 256M
           cpus: "0.3"
+
+  webapp-staging:
+    build: ./webapp
+    container_name: botbudget_webapp_staging
+    restart: unless-stopped
+    environment:
+      WEBAPP_PORT: "5175"
+    network_mode: host
+    # Serves the Mini App on http://localhost:5175/app/
+    # Cloudflare Tunnel should map app-staging.botbudget.it -> localhost:5175
+    # and proxy /api/* on the same host to localhost:8081 (dashboard-staging).
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+          cpus: "0.2"
