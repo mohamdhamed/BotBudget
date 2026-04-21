@@ -36,6 +36,7 @@ services:
     restart: unless-stopped
     environment:
       WEBAPP_PORT: "5175"
+      DASHBOARD_PORT: "8081"
     network_mode: host
     # Serves the Mini App on http://localhost:5175/app/
     # Cloudflare Tunnel should map app-staging.botbudget.it -> localhost:5175
