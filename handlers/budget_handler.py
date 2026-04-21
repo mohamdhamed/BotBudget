@@ -175,7 +175,7 @@ async def budget_set_amount_entered(update: Update, context: ContextTypes.DEFAUL
 
     user_id = update.effective_user.id
     if not await is_premium(user_id):
-        existing = await budget_service.repo.get_all_budgets(user_id)
+        existing = await budget_service.budget_repo.get_all_budgets(user_id)
         existing_cats = {b["category"] for b in existing}
         if category not in existing_cats and len(existing) >= FREE_BUDGET_LIMIT:
             await update.message.reply_text(
