@@ -30,6 +30,30 @@ class SubscriptionRepository:
             await conn.commit()
         return await self.get_plan(user_id)
 
+    async def grant_trial_if_new(self, user_id: int, days: int = 7) -> bool:
+        """Grant a N-day premium trial only if user has no subscription row yet.
+        Returns True if trial was granted, False if user already had a sub."""
+        sql = f"""
+            INSERT INTO subscriptions (user_id, plan, started_at, expires_at)
+            VALUES (%s, 'premium', NOW(), NOW() + INTERVAL '{int(days)} days')
+            ON CONFLICT (user_id) DO NOTHING
+            RETURNING user_id;
+        """
+        pool = get_pool()
+        try:
+            async with pool.connection() as conn:
+                async with conn.cursor() as cur:
+                    await cur.execute(sql, (user_id,))
+                    row = await cur.fetchone()
+                await conn.commit()
+            if row:
+                logger.info(f"Granted {days}-day trial to new user {user_id}")
+                return True
+            return False
+        except Exception as e:
+            logger.error(f"Failed to grant trial to {user_id}: {e}")
+            return False
+
     async def get_plan(self, user_id: int) -> dict:
         """Get user's current plan. Returns dict with plan, expires_at, is_active."""
         sql = "SELECT plan, expires_at FROM subscriptions WHERE user_id = %s;"

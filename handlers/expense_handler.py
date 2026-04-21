@@ -24,7 +24,7 @@ from ai.gemini_parser import parse_transaction
 from repositories.user_repo import UserRepository
 from services.expense_service import ExpenseService
 from services.budget_service import BudgetService
-from security.auth import authorized_only, check_plan_limit
+from security.auth import authorized_only, check_plan_limit, premium_only
 from security.rate_limiter import rate_limited
 from utils.logger import get_logger
 
@@ -148,19 +148,57 @@ async def handle_expense_callback(update: Update, context: ContextTypes.DEFAULT_
         if not pending:
             await query.edit_message_text("⚠️ انتهت صلاحية التأكيد. أعد إرسال الرسالة.")
             return
-        result = await expense_service.add_from_parsed(user.id, pending)
+        try:
+            result = await expense_service.add_from_parsed(user.id, pending)
+        except Exception as e:
+            logger.error(f"Failed to save expense for user {user.id}: {e}", exc_info=True)
+            await query.edit_message_text("⚠️ حصل خطأ في حفظ المعاملة. حاول تاني بعد شوية.")
+            return
+
         if result.get("success"):
             reply = result["message"]
-            alert = await budget_service.check_budget_alert(user.id, result.get("category", ""), 0)
-            if alert:
-                reply += f"\n\n{alert}"
-            # Show remaining transactions hint for free users
+            try:
+                alert = await budget_service.check_budget_alert(user.id, result.get("category", ""), 0)
+                if alert:
+                    reply += f"\n\n{alert}"
+            except Exception as e:
+                logger.warning(f"Budget alert check failed for user {user.id}: {e}")
             remaining = context.user_data.get("remaining_transactions")
             if remaining is not None and remaining <= 10:
                 reply += f"\n\n📊 متبقي {remaining} معاملة مجانية هذا الشهر."
-            await query.edit_message_text(reply)
+            quick_buttons = InlineKeyboardMarkup([[
+                InlineKeyboardButton("📊 ملخص اليوم", callback_data="quick_today"),
+                InlineKeyboardButton("🗑️ حذف", callback_data="quick_delete"),
+            ]])
+            await query.edit_message_text(reply, reply_markup=quick_buttons)
         else:
             await query.edit_message_text(f"⚠️ فشل الحفظ. {result.get('question', 'حاول تاني.')}")
+
+
+async def handle_quick_action(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Handle Quick Buttons after a successful transaction."""
+    query = update.callback_query
+    await query.answer()
+    user_id = update.effective_user.id
+
+    if query.data == "quick_today":
+        summary = await expense_service.get_today_summary(user_id)
+        await query.message.reply_text(summary, parse_mode="HTML")
+    elif query.data == "quick_delete":
+        expenses = await expense_service.repo.get_last_n(user_id, 10)
+        if not expenses:
+            await query.message.reply_text("📭 مفيش معاملات مسجلة.")
+            return
+        buttons = []
+        for e in expenses:
+            sign = "💸" if e.is_expense() else "💰"
+            label = f"{sign} #{e.id} | {e.amount:.0f}€ | {e.category} | {e.date}"
+            buttons.append([InlineKeyboardButton(label, callback_data=f"del_{e.id}")])
+        buttons.append([InlineKeyboardButton("❌ إلغاء", callback_data="del_cancel")])
+        await query.message.reply_text(
+            "🗑️ اختار المعاملة اللي عايز تحذفها:",
+            reply_markup=InlineKeyboardMarkup(buttons),
+        )
 
 
 # ══════════════════════════════════════════════════════════
@@ -210,6 +248,7 @@ async def search_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     await update.message.reply_text(msg, parse_mode="HTML")
 
 @authorized_only
+@premium_only("التقارير المخصصة")
 @rate_limited
 async def report_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     if not context.args or len(context.args) < 2:
@@ -472,6 +511,7 @@ edit_conversation = ConversationHandler(
 # ══════════════════════════════════════════════════════════
 
 @authorized_only
+@premium_only("المقارنة الشهرية")
 @rate_limited
 async def compare_entry(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Show month picker for first month."""

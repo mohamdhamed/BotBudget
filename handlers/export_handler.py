@@ -11,7 +11,7 @@ from telegram import Update
 from telegram.ext import ContextTypes
 
 from services.export_service import ExportService
-from security.auth import authorized_only
+from security.auth import authorized_only, premium_only
 from security.rate_limiter import rate_limited
 from utils.logger import get_logger
 
@@ -20,6 +20,7 @@ export_service = ExportService()
 
 
 @authorized_only
+@premium_only("تصدير CSV")
 @rate_limited
 async def export_csv_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """
@@ -56,6 +57,7 @@ async def export_csv_command(update: Update, context: ContextTypes.DEFAULT_TYPE)
 
 
 @authorized_only
+@premium_only("تصدير Excel")
 @rate_limited
 async def export_excel_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """

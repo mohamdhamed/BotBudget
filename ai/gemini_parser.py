@@ -185,14 +185,19 @@ def _parse_with_fallback(system_prompt: str, user_text: str, context_name: str) 
             return raw
         except Exception as e:
             if not GROQ_API_KEY:
+                logger.error("Gemini failed for %s and no Groq fallback available: %s", context_name, e, exc_info=True)
                 raise
-            logger.warning("Gemini failed (%s) — falling back to Groq for %s", type(e).__name__, context_name)
+            logger.warning("Gemini failed (%s: %s) — falling back to Groq for %s", type(e).__name__, e, context_name)
 
     if not GROQ_API_KEY:
         raise RuntimeError("No AI provider available. Set GEMINI_API_KEY or GROQ_API_KEY.")
 
-    logger.debug("Used Groq for %s", context_name)
-    return _call_groq(system_prompt, user_text)
+    try:
+        logger.debug("Used Groq for %s", context_name)
+        return _call_groq(system_prompt, user_text)
+    except Exception as e:
+        logger.error("Groq call failed for %s: %s", context_name, e, exc_info=True)
+        raise
 
 
 def parse_transaction(text: str, user_currency: str = "EUR") -> dict:

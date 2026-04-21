@@ -27,7 +27,7 @@ from handlers.admin_handler import (
     adduser_command, removeuser_command, users_command,
     upgrade_command, downgrade_command, subscribers_command,
 )
-from handlers.start_handler import start_command, help_command, myid_command, plan_command, upgrade_info_command
+from handlers.start_handler import start_command, help_command, myid_command, plan_command, upgrade_info_command, handle_show_upgrade_info
 from handlers.legal_handler import terms_command, privacy_command, about_command
 from handlers.expense_handler import (
     handle_text_message,
@@ -42,6 +42,7 @@ from handlers.expense_handler import (
     last_command,
     undo_command,
     handle_expense_callback,
+    handle_quick_action,
     handle_delete_pick,
     handle_delete_confirm,
     handle_category_show,
@@ -84,27 +85,35 @@ async def send_weekly_report(context) -> None:
     Scheduled job: send weekly expense summary to all users.
     Runs every Sunday at 20:00.
     """
-    from config import ALLOWED_USER_IDS
-    expense_service = ExpenseService()
+    try:
+        from config import ALLOWED_USER_IDS
+        from repositories.subscription_repo import SubscriptionRepository
+        expense_service = ExpenseService()
+        sub_repo = SubscriptionRepository()
 
-    header = (
-        "📬 ━━━━━━━━━━━━━━\n"
-        "   <b>التقرير الأسبوعي</b>\n"
-        "━━━━━━━━━━━━━━ 📬\n\n"
-    )
-    footer = "\n\n✨ أسبوع سعيد! — BotBudget"
+        header = (
+            "📬 ━━━━━━━━━━━━━━\n"
+            "   <b>التقرير الأسبوعي</b>\n"
+            "━━━━━━━━━━━━━━ 📬\n\n"
+        )
+        footer = "\n\n✨ أسبوع سعيد! — BotBudget"
 
-    for user_id in ALLOWED_USER_IDS:
-        try:
-            summary = await expense_service.get_week_summary(user_id)
-            await context.bot.send_message(
-                chat_id=user_id,
-                text=header + summary + footer,
-                parse_mode="HTML",
-            )
-            logger.info(f"Sent weekly report to user {user_id}")
-        except Exception as e:
-            logger.error(f"Failed to send weekly report to {user_id}: {e}")
+        for user_id in ALLOWED_USER_IDS:
+            plan_info = await sub_repo.get_plan(user_id)
+            if not plan_info["is_premium"]:
+                continue
+            try:
+                summary = await expense_service.get_week_summary(user_id)
+                await context.bot.send_message(
+                    chat_id=user_id,
+                    text=header + summary + footer,
+                    parse_mode="HTML",
+                )
+                logger.info(f"Sent weekly report to user {user_id}")
+            except Exception as e:
+                logger.error(f"Failed to send weekly report to {user_id}: {e}")
+    except Exception as e:
+        logger.error(f"weekly_report job crashed: {e}", exc_info=True)
 
 
 async def test_daily_command(update, context) -> None:
@@ -132,19 +141,22 @@ async def send_daily_report(context) -> None:
     Scheduled job: send morning summary of yesterday's transactions.
     Runs daily at 08:00 AM.
     """
-    from config import ALLOWED_USER_IDS
-    expense_service = ExpenseService()
+    try:
+        from config import ALLOWED_USER_IDS
+        expense_service = ExpenseService()
 
-    for user_id in ALLOWED_USER_IDS:
-        try:
-            summary = await expense_service.get_yesterday_summary(user_id)
-            await context.bot.send_message(
-                chat_id=user_id,
-                text=summary,
-                parse_mode="HTML",
-            )
-        except Exception as e:
-            logger.error(f"Failed to send daily report to {user_id}: {e}")
+        for user_id in ALLOWED_USER_IDS:
+            try:
+                summary = await expense_service.get_yesterday_summary(user_id)
+                await context.bot.send_message(
+                    chat_id=user_id,
+                    text=summary,
+                    parse_mode="HTML",
+                )
+            except Exception as e:
+                logger.error(f"Failed to send daily report to {user_id}: {e}")
+    except Exception as e:
+        logger.error(f"daily_report job crashed: {e}", exc_info=True)
 
 
 async def send_reminders(context) -> None:
@@ -152,8 +164,12 @@ async def send_reminders(context) -> None:
     Scheduled job: check for upcoming recurring payments and send reminders.
     Runs daily at 09:00 AM.
     """
-    recurring_service = RecurringService()
-    due_payments = await recurring_service.get_due_reminders()
+    try:
+        recurring_service = RecurringService()
+        due_payments = await recurring_service.get_due_reminders()
+    except Exception as e:
+        logger.error(f"send_reminders: failed to fetch due payments: {e}", exc_info=True)
+        return
 
     for payment in due_payments:
         try:
@@ -197,6 +213,7 @@ async def set_bot_commands(application: Application) -> None:
         BotCommand("edit", "✏️ تعديل معاملة"),
         BotCommand("delete", "🗑️ حذف عملية"),
         BotCommand("budget", "💰 الميزانية الشهرية"),
+        BotCommand("setbudget", "➕ تحديد ميزانية لفئة"),
         BotCommand("recurring", "🔁 المدفوعات المتكررة"),
         BotCommand("add_recurring", "➕ إضافة دفعة متكررة"),
         BotCommand("delete_recurring", "❌ حذف دفعة متكررة"),
@@ -312,6 +329,8 @@ def main() -> None:
 
     # ── 5. Callback query handlers (inline keyboards) ────
     app.add_handler(CallbackQueryHandler(handle_expense_callback, pattern="^(confirm|cancel)_expense$"))
+    app.add_handler(CallbackQueryHandler(handle_quick_action, pattern="^quick_(today|delete)$"))
+    app.add_handler(CallbackQueryHandler(handle_show_upgrade_info, pattern="^show_upgrade_info$"))
     app.add_handler(CallbackQueryHandler(handle_delete_pick, pattern=r"^del_\d+$"))
     app.add_handler(CallbackQueryHandler(handle_delete_confirm, pattern=r"^delok_\d+$"))
     app.add_handler(CallbackQueryHandler(handle_delete_pick, pattern="^del_cancel$"))

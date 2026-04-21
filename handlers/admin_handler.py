@@ -146,8 +146,8 @@ async def upgrade_command(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
                 ),
                 parse_mode="Markdown",
             )
-        except Exception:
-            pass
+        except Exception as e:
+            logger.warning(f"Could not notify user {user_id} about upgrade: {e}")
     else:
         await update.message.reply_text("⚠️ فشلت الترقية. تأكد إن المستخدم مسجّل.")
 

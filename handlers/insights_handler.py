@@ -7,7 +7,7 @@ handlers/insights_handler.py
 from telegram import Update
 from telegram.ext import ContextTypes
 
-from security.auth import authorized_only
+from security.auth import authorized_only, premium_only
 from security.rate_limiter import rate_limited
 from services.insights_service import InsightsService
 from utils.logger import get_logger
@@ -42,6 +42,7 @@ def _trend_arrow(pct: float) -> str:
 
 
 @authorized_only
+@premium_only("التحليل الذكي والتوقعات")
 @rate_limited
 async def insights_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Handle /insights command."""

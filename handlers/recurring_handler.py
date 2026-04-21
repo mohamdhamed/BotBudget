@@ -21,7 +21,7 @@ from telegram.ext import (
 )
 
 from services.recurring_service import RecurringService
-from security.auth import authorized_only
+from security.auth import authorized_only, is_premium, FREE_RECURRING_LIMIT, upgrade_prompt_keyboard
 from security.rate_limiter import rate_limited
 from utils.logger import get_logger
 
@@ -198,7 +198,18 @@ async def delete_recurring_command(update: Update, context: ContextTypes.DEFAULT
 @rate_limited
 async def add_recurring_entry(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Entry point: ask for payment name."""
-    # Support old pipe syntax for backwards compat
+    user_id = update.effective_user.id
+    if not await is_premium(user_id):
+        existing = await recurring_service.repo.get_all(user_id, active_only=False)
+        if len(existing) >= FREE_RECURRING_LIMIT:
+            await update.message.reply_text(
+                f"🔒 <b>الحد الأقصى للمدفوعات المتكررة المجانية ({FREE_RECURRING_LIMIT})</b>\n\n"
+                f"✨ ترقّي لـ Premium لإضافة مدفوعات متكررة بلا حدود.",
+                reply_markup=upgrade_prompt_keyboard(),
+                parse_mode="HTML",
+            )
+            return ConversationHandler.END
+
     if context.args and "|" in " ".join(context.args):
         text = " ".join(context.args)
         return await _handle_pipe_format(update, text)
