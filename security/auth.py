@@ -26,6 +26,7 @@ _sub_repo = SubscriptionRepository()
 FREE_MONTHLY_LIMIT = 30
 FREE_BUDGET_LIMIT = 1
 FREE_RECURRING_LIMIT = 2
+TRIAL_DAYS = 7
 
 
 async def is_premium(user_id: int) -> bool:
@@ -53,9 +54,12 @@ def authorized_only(func: Callable):
         if not user:
             return
 
-        # Auto-register user + subscription on first contact
+        # Auto-register user + subscription on first contact (7-day trial for brand-new users)
         await _user_repo.ensure_user(user.id, user.first_name)
-        await _sub_repo.ensure_free(user.id)
+        trial_granted = await _sub_repo.grant_trial_if_new(user.id, days=TRIAL_DAYS)
+        if not trial_granted:
+            await _sub_repo.ensure_free(user.id)
+        context.user_data["_trial_just_granted"] = trial_granted
 
         return await func(update, context, *args, **kwargs)
 

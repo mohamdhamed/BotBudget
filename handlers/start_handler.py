@@ -71,10 +71,18 @@ HELP_TEXT = """
 /help - عرض المساعدة
 """
 
+TRIAL_DAYS = 7
+
 ONBOARDING_TEXT = """
 🎉 *مرحباً {name}! أهلاً بيك في BotBudget*
 
 بوتك الشخصي لإدارة المصاريف بالذكاء الاصطناعي 🤖💶
+
+🎁 *هدية الترحيب:* تجربة Premium مجاناً لمدة {trial} أيام!
+  ✨ معاملات + ميزانيات بلا حدود
+  ✨ كل الرسوم البيانية والتحليلات
+  ✨ تصدير Excel / CSV
+  ✨ المقارنات والتقارير المخصصة
 
 *كل اللي عليك تعمله:*
 اكتب معاملتك بشكل طبيعي وأنا هافهمها:
@@ -84,9 +92,7 @@ ONBOARDING_TEXT = """
 • "١٠٠ بنزين"
 
 💱 اختر عملتك الافتراضية: /currency
-
-*خطتك الحالية:* 🆓 مجانية ({limit} معاملة/شهر)
-🌟 ترقّي لـ Premium لفتح: الرسوم البيانية، التحليل الذكي، التصدير، والتقرير الأسبوعي → /upgrade\\_info
+📋 اعرف تفاصيل الخطط: /upgrade\\_info
 
 *ابدأ دلوقتي:* اكتب أول معاملة! ✍️
 أو اكتب /help لكل الأوامر.
@@ -98,28 +104,35 @@ ONBOARDING_TEXT = """
 async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Handle /start — register user and show onboarding or welcome."""
     user = update.effective_user
-    await user_repo.ensure_user(user.id, user.first_name)
-    await sub_repo.ensure_free(user.id)
-    logger.info(f"User {user.id} ({user.first_name}) started the bot.")
+    # User registration + trial already handled by @authorized_only
+    trial_granted = context.user_data.get("_trial_just_granted", False)
+    logger.info(f"User {user.id} ({user.first_name}) started the bot. Trial granted: {trial_granted}")
 
-    # Check if returning user
     plan_info = await sub_repo.get_plan(user.id)
     count = await sub_repo.count_month_transactions(user.id)
 
+    if trial_granted:
+        await update.message.reply_text(
+            ONBOARDING_TEXT.format(name=user.first_name, trial=TRIAL_DAYS),
+            parse_mode="Markdown",
+        )
+        return
+
     if count > 0:
-        # Returning user
         plan_label = "🌟 مميزة" if plan_info["is_premium"] else "🆓 مجانية"
+        extra = ""
+        if plan_info["is_premium"] and plan_info.get("expires_at"):
+            extra = f"\n📅 تنتهي: {plan_info['expires_at'].strftime('%Y-%m-%d')}"
         await update.message.reply_text(
             f"مرحباً مجدداً {user.first_name}! 👋\n\n"
-            f"📊 خطتك: {plan_label}\n"
+            f"📊 خطتك: {plan_label}{extra}\n"
             f"📝 معاملات هذا الشهر: {count}\n\n"
             f"اكتب معاملتك أو /help للمساعدة.",
             parse_mode="Markdown",
         )
     else:
-        # New user — show onboarding
         await update.message.reply_text(
-            ONBOARDING_TEXT.format(name=user.first_name, limit=FREE_MONTHLY_LIMIT),
+            ONBOARDING_TEXT.format(name=user.first_name, trial=TRIAL_DAYS),
             parse_mode="Markdown",
         )
 
@@ -187,6 +200,7 @@ UPGRADE_INFO_TEXT = (
     "  ✅ التقارير المخصصة /report\n"
     "  ✅ التقرير الأسبوعي التلقائي\n"
     "  ✅ دعم أولوي\n\n"
+    "🎁 *تجربة مجانية 7 أيام لكل مستخدم جديد!*\n\n"
     "*الخطة المجانية:*\n"
     f"  📊 {FREE_MONTHLY_LIMIT} معاملة/شهر\n"
     "  📊 ميزانية واحدة + دفعتين متكررتين\n"
