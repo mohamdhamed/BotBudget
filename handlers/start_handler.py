@@ -86,7 +86,7 @@ ONBOARDING_TEXT = """
 💱 اختر عملتك الافتراضية: /currency
 
 *خطتك الحالية:* 🆓 مجانية ({limit} معاملة/شهر)
-ترقّي لـ Premium لمعاملات بلا حدود! → /upgrade\\_info
+🌟 ترقّي لـ Premium لفتح: الرسوم البيانية، التحليل الذكي، التصدير، والتقرير الأسبوعي → /upgrade\\_info
 
 *ابدأ دلوقتي:* اكتب أول معاملة! ✍️
 أو اكتب /help لكل الأوامر.
@@ -161,24 +161,36 @@ async def plan_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         await update.message.reply_text(
             f"🆓 *خطتك: مجانية (Free)*\n\n"
             f"📝 معاملات هذا الشهر: {count}/{FREE_MONTHLY_LIMIT}\n"
-            f"📊 متبقي: {remaining} معاملة\n\n"
-            f"🌟 ترقّي للخطة المميزة! → /upgrade\\_info",
+            f"📊 متبقي: {remaining} معاملة\n"
+            f"💰 ميزانية واحدة + دفعتين متكررتين\n\n"
+            f"🔒 *مميزات Premium:*\n"
+            f"  • /chart و /chart\\_week — رسوم بيانية\n"
+            f"  • /insights — تحليل ذكي\n"
+            f"  • /compare و /report\n"
+            f"  • /export\\_csv و /export\\_excel\n"
+            f"  • التقرير الأسبوعي التلقائي\n\n"
+            f"🌟 ترقّي الآن → /upgrade\\_info",
             parse_mode="Markdown",
         )
 
 
 UPGRADE_INFO_TEXT = (
     "🌟 *الخطة المميزة (Premium)*\n\n"
-    "*المميزات:*\n"
-    "  ✅ معاملات بلا حدود\n"
-    "  ✅ تقارير متقدمة\n"
-    "  ✅ رسوم بيانية\n"
-    "  ✅ تصدير Excel/CSV\n"
-    "  ✅ مدفوعات متكررة\n"
-    "  ✅ تنبيهات الميزانية\n"
-    "  ✅ دعم أولوية\n\n"
+    "*مميزات إضافية:*\n"
+    "  ✅ معاملات بلا حدود (بدل 30/شهر)\n"
+    "  ✅ ميزانيات لكل الفئات (بدل 1)\n"
+    "  ✅ مدفوعات متكررة بلا حدود (بدل 2)\n"
+    "  ✅ الرسوم البيانية (شهري + أسبوعي)\n"
+    "  ✅ التحليل الذكي /insights\n"
+    "  ✅ تصدير Excel و CSV\n"
+    "  ✅ المقارنة الشهرية /compare\n"
+    "  ✅ التقارير المخصصة /report\n"
+    "  ✅ التقرير الأسبوعي التلقائي\n"
+    "  ✅ دعم أولوي\n\n"
     "*الخطة المجانية:*\n"
-    f"  📊 {FREE_MONTHLY_LIMIT} معاملة/شهر فقط\n\n"
+    f"  📊 {FREE_MONTHLY_LIMIT} معاملة/شهر\n"
+    "  📊 ميزانية واحدة + دفعتين متكررتين\n"
+    "  📊 التقارير الأساسية + التنبيه اليومي\n\n"
     "*الأسعار:*\n"
     "  💵 شهري: $3/شهر\n"
     "  💵 سنوي: $20/سنة (وفّر 44%!)\n\n"
@@ -199,23 +211,4 @@ async def handle_show_upgrade_info(update: Update, context: ContextTypes.DEFAULT
 @rate_limited
 async def upgrade_info_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Handle /upgrade_info — show premium plan details and how to subscribe."""
-    await update.message.reply_text(
-        "🌟 *الخطة المميزة (Premium)*\n\n"
-        "*المميزات:*\n"
-        "  ✅ معاملات بلا حدود\n"
-        "  ✅ تقارير متقدمة\n"
-        "  ✅ رسوم بيانية\n"
-        "  ✅ تصدير Excel/CSV\n"
-        "  ✅ مدفوعات متكررة\n"
-        "  ✅ تنبيهات الميزانية\n"
-        "  ✅ دعم أولوية\n\n"
-        "*الخطة المجانية:*\n"
-        f"  📊 {FREE_MONTHLY_LIMIT} معاملة/شهر فقط\n\n"
-        "*الأسعار:*\n"
-        "  💵 شهري: $3/شهر\n"
-        "  💵 سنوي: $20/سنة (وفّر 44%!)\n\n"
-        "*للاشتراك:*\n"
-        "📩 تواصل: @BotBudgetSupport\n"
-        "💳 طرق الدفع: تحويل بنكي، PayPal، فودافون كاش",
-        parse_mode="Markdown",
-    )
+    await update.message.reply_text(UPGRADE_INFO_TEXT, parse_mode="Markdown")

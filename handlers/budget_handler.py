@@ -18,7 +18,7 @@ from telegram.ext import (
 
 from handlers.expense_handler import CATEGORIES
 from services.budget_service import BudgetService
-from security.auth import authorized_only
+from security.auth import authorized_only, is_premium, FREE_BUDGET_LIMIT, upgrade_prompt_keyboard
 from security.rate_limiter import rate_limited
 from utils.logger import get_logger
 
@@ -173,7 +173,20 @@ async def budget_set_amount_entered(update: Update, context: ContextTypes.DEFAUL
         await update.message.reply_text("⚠️ اكتب مبلغ صحيح (رقم أكبر من 0):")
         return BUDGET_AMOUNT
 
-    msg = await budget_service.set_budget(update.effective_user.id, category, amount)
+    user_id = update.effective_user.id
+    if not await is_premium(user_id):
+        existing = await budget_service.repo.get_all_budgets(user_id)
+        existing_cats = {b["category"] for b in existing}
+        if category not in existing_cats and len(existing) >= FREE_BUDGET_LIMIT:
+            await update.message.reply_text(
+                f"🔒 <b>الحد الأقصى للميزانيات المجانية ({FREE_BUDGET_LIMIT})</b>\n\n"
+                f"✨ ترقّي لـ Premium لتحديد ميزانيات لكل الفئات بلا حدود.",
+                reply_markup=upgrade_prompt_keyboard(),
+                parse_mode="HTML",
+            )
+            return ConversationHandler.END
+
+    msg = await budget_service.set_budget(user_id, category, amount)
     await update.message.reply_text(msg)
     return ConversationHandler.END
 

@@ -24,7 +24,7 @@ from ai.gemini_parser import parse_transaction
 from repositories.user_repo import UserRepository
 from services.expense_service import ExpenseService
 from services.budget_service import BudgetService
-from security.auth import authorized_only, check_plan_limit
+from security.auth import authorized_only, check_plan_limit, premium_only
 from security.rate_limiter import rate_limited
 from utils.logger import get_logger
 
@@ -248,6 +248,7 @@ async def search_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     await update.message.reply_text(msg, parse_mode="HTML")
 
 @authorized_only
+@premium_only("التقارير المخصصة")
 @rate_limited
 async def report_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     if not context.args or len(context.args) < 2:
@@ -510,6 +511,7 @@ edit_conversation = ConversationHandler(
 # ══════════════════════════════════════════════════════════
 
 @authorized_only
+@premium_only("المقارنة الشهرية")
 @rate_limited
 async def compare_entry(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Show month picker for first month."""

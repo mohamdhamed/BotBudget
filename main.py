@@ -87,7 +87,9 @@ async def send_weekly_report(context) -> None:
     """
     try:
         from config import ALLOWED_USER_IDS
+        from repositories.subscription_repo import SubscriptionRepository
         expense_service = ExpenseService()
+        sub_repo = SubscriptionRepository()
 
         header = (
             "📬 ━━━━━━━━━━━━━━\n"
@@ -97,6 +99,9 @@ async def send_weekly_report(context) -> None:
         footer = "\n\n✨ أسبوع سعيد! — BotBudget"
 
         for user_id in ALLOWED_USER_IDS:
+            plan_info = await sub_repo.get_plan(user_id)
+            if not plan_info["is_premium"]:
+                continue
             try:
                 summary = await expense_service.get_week_summary(user_id)
                 await context.bot.send_message(
