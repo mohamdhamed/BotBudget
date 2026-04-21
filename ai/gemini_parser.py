@@ -15,7 +15,7 @@ from datetime import date
 import google.generativeai as genai
 from google.api_core.exceptions import ResourceExhausted
 
-from config import GEMINI_API_KEY, GROQ_API_KEY
+from config import GEMINI_API_KEY, GROQ_API_KEY, DEFAULT_CURRENCY
 from utils.logger import get_logger
 
 logger = get_logger(__name__)
@@ -115,15 +115,22 @@ _RECURRING_PROMPT_TEMPLATE = """أنت مساعد مالي شخصي. حلل رس
 """
 
 
+_JSON_OBJECT_RE = re.compile(r"\{.*\}", re.DOTALL)
+
+
 def _clean_json_response(raw: str) -> str:
-    """Strip markdown code fences and extra whitespace from AI response."""
+    """Extract the first JSON object from an AI response, tolerating
+    markdown fences, leading/trailing prose, or extra whitespace."""
+    if not raw:
+        return ""
+    match = _JSON_OBJECT_RE.search(raw)
+    if match:
+        return match.group(0).strip()
+    # Fallback: strip markdown fences only
     raw = raw.strip()
     if raw.startswith("```"):
         first_line_end = raw.find("\n")
-        if first_line_end != -1:
-            raw = raw[first_line_end + 1:]
-        else:
-            raw = raw[3:]
+        raw = raw[first_line_end + 1:] if first_line_end != -1 else raw[3:]
     if raw.endswith("```"):
         raw = raw[:-3]
     return raw.strip()
@@ -131,16 +138,24 @@ def _clean_json_response(raw: str) -> str:
 
 # ── Security constants ────────────────────────────────
 _MAX_INPUT_LENGTH = 500
+# English keywords commonly used in prompt-injection attacks. Arabic financial
+# messages practically never contain these, so we neutralize them on sight.
 _DANGEROUS_PATTERNS = re.compile(
-    r"(ignore|forget|disregard|system|prompt|instruction)",
+    r"\b(ignore|forget|disregard|override|system\s+prompt|"
+    r"instructions?|you\s+are|act\s+as|pretend|roleplay|jailbreak|"
+    r"developer\s+mode|admin\s+mode)\b",
     re.IGNORECASE,
 )
+_CONTROL_CHARS_RE = re.compile(r'[\x00-\x08\x0b-\x0c\x0e-\x1f\x7f]')
 
 
 def _sanitize_input(text: str) -> str:
-    """Truncate, strip control chars, basic prompt injection defense."""
+    """Truncate, strip control chars, neutralize prompt-injection attempts."""
     text = text[:_MAX_INPUT_LENGTH]
-    text = re.sub(r'[\x00-\x08\x0b-\x0c\x0e-\x1f\x7f]', '', text)
+    text = _CONTROL_CHARS_RE.sub('', text)
+    if _DANGEROUS_PATTERNS.search(text):
+        logger.warning("Prompt-injection attempt neutralized in input")
+        text = _DANGEROUS_PATTERNS.sub('[filtered]', text)
     return text.strip()
 
 
@@ -200,7 +215,7 @@ def _parse_with_fallback(system_prompt: str, user_text: str, context_name: str) 
         raise
 
 
-def parse_transaction(text: str, user_currency: str = "EUR") -> dict:
+def parse_transaction(text: str, user_currency: str = DEFAULT_CURRENCY) -> dict:
     """
     Parse a natural-language Arabic financial message into structured data.
 
