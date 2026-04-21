@@ -36,7 +36,10 @@
       "Bash(git branch *)",
       "Bash(python -c \"import ast; [ast.parse\\(open\\(f\\).read\\(\\)\\) for f in ['main.py','security/auth.py','handlers/start_handler.py','handlers/budget_handler.py','handlers/recurring_handler.py','handlers/chart_handler.py','handlers/insights_handler.py','handlers/export_handler.py','handlers/expense_handler.py']]\")",
       "Bash(docker exec *)",
-      "Bash(python -c \"import ast; [ast.parse\\(open\\(f\\).read\\(\\)\\) for f in ['security/auth.py','handlers/start_handler.py','repositories/subscription_repo.py']]\")"
+      "Bash(python -c \"import ast; [ast.parse\\(open\\(f\\).read\\(\\)\\) for f in ['security/auth.py','handlers/start_handler.py','repositories/subscription_repo.py']]\")",
+      "Bash(git pull *)",
+      "Bash(git merge *)",
+      "Bash(git stash *)"
     ]
   }
 }

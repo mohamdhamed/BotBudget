@@ -29,3 +29,17 @@ services:
         limits:
           memory: 256M
           cpus: "0.3"
+
+  webapp:
+    build: ./webapp
+    container_name: botbudget_webapp
+    restart: unless-stopped
+    network_mode: host
+    # Serves the Mini App on http://localhost:5174/app/
+    # Cloudflare Tunnel should map app.botbudget.it -> localhost:5174
+    # and proxy /api/* on the same host to localhost:8080 (dashboard).
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+          cpus: "0.2"
