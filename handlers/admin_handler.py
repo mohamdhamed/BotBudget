@@ -5,7 +5,10 @@ Admin commands for managing users and subscriptions.
 All commands require ADMIN_USER_IDS in .env.
 """
 
+import asyncio
+
 from telegram import Update
+from telegram.error import Forbidden, BadRequest
 from telegram.ext import ContextTypes
 
 from repositories.allowed_users_repo import AllowedUsersRepository
@@ -202,3 +205,68 @@ async def subscribers_command(update: Update, context: ContextTypes.DEFAULT_TYPE
         lines.append(f"  {icon} `{s['user_id']}` — {name}{expires}")
 
     await update.message.reply_text("\n".join(lines), parse_mode="Markdown")
+
+
+BROADCAST_V1_2 = (
+    "🎉 *تحديث جديد في BotBudget v1.2!*\n\n"
+    "✨ *الجديد:*\n"
+    "🎁 تجربة Premium مجاناً *7 أيام* لكل مستخدم جديد\n\n"
+    "💰 *حدود الخطة المجانية:*\n"
+    "  • 30 معاملة/شهر\n"
+    "  • ميزانية واحدة + دفعتين متكررتين\n\n"
+    "🔒 *مميزات Premium حصرية:*\n"
+    "  • /chart و /chart\\_week — رسوم بيانية\n"
+    "  • /insights — تحليل ذكي\n"
+    "  • /compare و /report\n"
+    "  • /export\\_csv و /export\\_excel\n"
+    "  • التقرير الأسبوعي التلقائي\n\n"
+    "🔘 أزرار سريعة بعد كل معاملة\n"
+    "📅 التقرير اليومي لسه متاح للكل مجاناً\n\n"
+    "📋 التفاصيل: /upgrade\\_info\n"
+    "📊 خطتك الحالية: /plan"
+)
+
+
+@admin_only
+async def broadcast_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """/broadcast [confirm] — Send the v1.2 announcement to all subscribers."""
+    if not context.args or context.args[0] != "confirm":
+        await update.message.reply_text(
+            "📣 *معاينة الرسالة:*\n\n" + BROADCAST_V1_2 +
+            "\n\n━━━━━━━━━━\n"
+            "لإرسالها للجميع اكتب:\n`/broadcast confirm`",
+            parse_mode="Markdown",
+        )
+        return
+
+    subs = await sub_repo.get_all_subscribers()
+    if not subs:
+        await update.message.reply_text("📭 مفيش مستخدمين.")
+        return
+
+    sent, blocked, failed = 0, 0, 0
+    status_msg = await update.message.reply_text(f"📤 جاري الإرسال لـ {len(subs)} مستخدم...")
+
+    for s in subs:
+        try:
+            await context.bot.send_message(
+                chat_id=s["user_id"], text=BROADCAST_V1_2, parse_mode="Markdown"
+            )
+            sent += 1
+        except Forbidden:
+            blocked += 1
+        except BadRequest as e:
+            logger.warning(f"Broadcast BadRequest to {s['user_id']}: {e}")
+            failed += 1
+        except Exception as e:
+            logger.warning(f"Broadcast failed to {s['user_id']}: {e}")
+            failed += 1
+        await asyncio.sleep(0.05)
+
+    await status_msg.edit_text(
+        f"✅ *تم الإرسال*\n\n"
+        f"📨 وصلت: {sent}\n"
+        f"🚫 حاظرين البوت: {blocked}\n"
+        f"⚠️ فشل: {failed}",
+        parse_mode="Markdown",
+    )

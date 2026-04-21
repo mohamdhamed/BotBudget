@@ -26,6 +26,7 @@ from db.init_db import create_tables
 from handlers.admin_handler import (
     adduser_command, removeuser_command, users_command,
     upgrade_command, downgrade_command, subscribers_command,
+    broadcast_command,
 )
 from handlers.start_handler import start_command, help_command, myid_command, plan_command, upgrade_info_command, handle_show_upgrade_info
 from handlers.legal_handler import terms_command, privacy_command, about_command
@@ -323,6 +324,7 @@ def main() -> None:
     app.add_handler(CommandHandler("upgrade", upgrade_command))
     app.add_handler(CommandHandler("downgrade", downgrade_command))
     app.add_handler(CommandHandler("subscribers", subscribers_command))
+    app.add_handler(CommandHandler("broadcast", broadcast_command))
 
     # ── 4. Text message handler (catch-all for AI parsing) ──
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_text_message))
