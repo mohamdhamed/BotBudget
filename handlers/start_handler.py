@@ -167,6 +167,34 @@ async def plan_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         )
 
 
+UPGRADE_INFO_TEXT = (
+    "🌟 *الخطة المميزة (Premium)*\n\n"
+    "*المميزات:*\n"
+    "  ✅ معاملات بلا حدود\n"
+    "  ✅ تقارير متقدمة\n"
+    "  ✅ رسوم بيانية\n"
+    "  ✅ تصدير Excel/CSV\n"
+    "  ✅ مدفوعات متكررة\n"
+    "  ✅ تنبيهات الميزانية\n"
+    "  ✅ دعم أولوية\n\n"
+    "*الخطة المجانية:*\n"
+    f"  📊 {FREE_MONTHLY_LIMIT} معاملة/شهر فقط\n\n"
+    "*الأسعار:*\n"
+    "  💵 شهري: $3/شهر\n"
+    "  💵 سنوي: $20/سنة (وفّر 44%!)\n\n"
+    "*للاشتراك:*\n"
+    "📩 تواصل: @BotBudgetSupport\n"
+    "💳 طرق الدفع: تحويل بنكي، PayPal، فودافون كاش"
+)
+
+
+async def handle_show_upgrade_info(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Callback for the 'show_upgrade_info' inline button."""
+    query = update.callback_query
+    await query.answer()
+    await query.message.reply_text(UPGRADE_INFO_TEXT, parse_mode="Markdown")
+
+
 @authorized_only
 @rate_limited
 async def upgrade_info_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:

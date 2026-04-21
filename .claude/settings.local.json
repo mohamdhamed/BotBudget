@@ -31,7 +31,8 @@
       "Read(//tmp/**)",
       "Bash(grep -B1 \"pass$\")",
       "Bash(grep -E \"\\\\.py$\")",
-      "Bash(git checkout *)"
+      "Bash(git checkout *)",
+      "Bash(python -c \"import ast; [ast.parse\\(open\\(f\\).read\\(\\)\\) for f in ['main.py','handlers/expense_handler.py','handlers/start_handler.py','handlers/admin_handler.py','security/auth.py','ai/gemini_parser.py']]\")"
     ]
   }
 }

@@ -10,7 +10,7 @@ Authentication middleware for the Telegram bot.
 from functools import wraps
 from typing import Callable
 
-from telegram import Update
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes
 
 from config import ADMIN_USER_IDS
@@ -70,11 +70,18 @@ def check_plan_limit(func: Callable):
         count = await _sub_repo.count_month_transactions(user.id)
         if count >= FREE_MONTHLY_LIMIT:
             remaining_msg = (
-                f"⚠️ وصلت للحد الأقصى للخطة المجانية ({FREE_MONTHLY_LIMIT} معاملة/شهر).\n\n"
-                f"🌟 ترقّي للخطة المميزة لمعاملات بلا حدود!\n"
-                f"تواصل مع المشرف: اكتب /upgrade_info"
+                f"🚫 <b>وصلت للحد الأقصى الشهري</b>\n\n"
+                f"📊 استخدمت {FREE_MONTHLY_LIMIT}/{FREE_MONTHLY_LIMIT} معاملة في الخطة المجانية.\n\n"
+                f"✨ <b>ترقّي للخطة المميزة</b> واستمتع بـ:\n"
+                f"  • معاملات بلا حدود\n"
+                f"  • تقارير ذكية شهرية\n"
+                f"  • دعم أولوي\n\n"
+                f"💡 تقدر تستخدم /month لعرض تقرير الشهر الحالي."
             )
-            await update.message.reply_text(remaining_msg)
+            keyboard = InlineKeyboardMarkup([[
+                InlineKeyboardButton("🌟 معلومات الترقية", callback_data="show_upgrade_info"),
+            ]])
+            await update.message.reply_text(remaining_msg, reply_markup=keyboard, parse_mode="HTML")
             return
 
         # Add remaining count hint if close to limit
