@@ -10,9 +10,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends curl ca-certifi
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Download Tailwind CSS standalone CLI (no Node.js needed)
+# Download Tailwind CSS v3 standalone CLI (no Node.js needed)
 RUN curl -sLo /usr/local/bin/tailwindcss \
-    https://github.com/tailwindlabs/tailwindcss/releases/latest/download/tailwindcss-linux-x64 \
+    https://github.com/tailwindlabs/tailwindcss/releases/download/v3.4.17/tailwindcss-linux-x64 \
     && chmod +x /usr/local/bin/tailwindcss
 
 # Copy project files (.dockerignore excludes .env, .git, etc.)
