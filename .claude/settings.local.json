@@ -39,7 +39,12 @@
       "Bash(python -c \"import ast; [ast.parse\\(open\\(f\\).read\\(\\)\\) for f in ['security/auth.py','handlers/start_handler.py','repositories/subscription_repo.py']]\")",
       "Bash(git pull *)",
       "Bash(git merge *)",
-      "Bash(git stash *)"
+      "Bash(git stash *)",
+      "Bash(npx create-video@latest --yes --blank --no-tailwind video)",
+      "Bash(npm install *)",
+      "Bash(npx remotion *)",
+      "Bash(curl -s http://localhost:3900)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:3900)"
     ]
   }
 }

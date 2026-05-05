@@ -1,7 +1,7 @@
 """Public landing page — no authentication required."""
 
 from fastapi import APIRouter, Request
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, PlainTextResponse
 
 router = APIRouter()
 
@@ -30,3 +30,9 @@ async def terms(request: Request):
     return request.app.state.templates.TemplateResponse(
         request, "terms.html", {}, headers=_CACHE_HEADERS,
     )
+
+
+@router.get("/google53393fa86cd19289.html", response_class=PlainTextResponse)
+async def google_site_verification():
+    """Google Search Console site verification."""
+    return "google-site-verification: google53393fa86cd19289.html"
