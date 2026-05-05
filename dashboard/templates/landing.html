@@ -6,15 +6,10 @@
     <title>BotBudget — تتبع مصاريفك بذكاء</title>
     <meta name="description" content="بوت تليجرام ذكي لتتبع المصاريف وإدارة الميزانية بالعربي. مجاناً للبدء!">
 
-    <!-- Performance: Preconnect for fonts -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-
-    <!-- Fonts -->
-    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;800&display=swap" rel="stylesheet">
-
-    <!-- Tailwind (pre-built, ~10KB minified) -->
+    <!-- Tailwind + self-hosted Cairo font (no external requests!) -->
     <link rel="stylesheet" href="/static/css/tailwind.css">
+    <link rel="preload" as="font" type="font/woff2" href="/static/fonts/cairo-400.woff2" crossorigin>
+    <link rel="preload" as="font" type="font/woff2" href="/static/fonts/cairo-700.woff2" crossorigin>
     <style>
         * { scroll-behavior: smooth; }
         body {

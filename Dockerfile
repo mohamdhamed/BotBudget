@@ -15,8 +15,18 @@ RUN curl -sLo /usr/local/bin/tailwindcss \
     https://github.com/tailwindlabs/tailwindcss/releases/download/v3.4.17/tailwindcss-linux-x64 \
     && chmod +x /usr/local/bin/tailwindcss
 
+# Download Cairo font woff2 files (Arabic subset) for self-hosting
+RUN mkdir -p /tmp/fonts && cd /tmp/fonts && \
+    curl -sL "https://fonts.gstatic.com/s/cairo/v28/SLXgc1nY6HkvangtZmpQdkhzfH5lkSs2SgRjCAGMQ1z0hOA-W1Q.woff2" -o cairo-400.woff2 && \
+    curl -sL "https://fonts.gstatic.com/s/cairo/v28/SLXgc1nY6HkvangtZmpQdkhzfH5lkSs2SgRjCAGMQ1z0hOA-elU.woff2" -o cairo-700.woff2 && \
+    curl -sL "https://fonts.gstatic.com/s/cairo/v28/SLXgc1nY6HkvangtZmpQdkhzfH5lkSs2SgRjCAGMQ1z0hOA-clQ.woff2" -o cairo-800.woff2
+
 # Copy project files (.dockerignore excludes .env, .git, etc.)
 COPY . .
+
+# Copy fonts into static directory
+RUN mkdir -p dashboard/static/fonts && \
+    cp /tmp/fonts/*.woff2 dashboard/static/fonts/
 
 # Build minified Tailwind CSS (only used classes — ~10KB)
 RUN tailwindcss -c tailwind.config.js \

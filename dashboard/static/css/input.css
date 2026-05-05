@@ -1,3 +1,26 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* Self-hosted Cairo font (eliminates Google Fonts dependency) */
+@font-face {
+    font-family: 'Cairo';
+    font-style: normal;
+    font-weight: 400;
+    font-display: swap;
+    src: url('/static/fonts/cairo-400.woff2') format('woff2');
+}
+@font-face {
+    font-family: 'Cairo';
+    font-style: normal;
+    font-weight: 700;
+    font-display: swap;
+    src: url('/static/fonts/cairo-700.woff2') format('woff2');
+}
+@font-face {
+    font-family: 'Cairo';
+    font-style: normal;
+    font-weight: 800;
+    font-display: swap;
+    src: url('/static/fonts/cairo-800.woff2') format('woff2');
+}

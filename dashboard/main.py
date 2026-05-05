@@ -56,6 +56,16 @@ app.mount(
     name="static",
 )
 
+
+@app.middleware("http")
+async def add_static_cache_headers(request: Request, call_next):
+    """Long cache for static assets (CSS, fonts, images)."""
+    response = await call_next(request)
+    if request.url.path.startswith("/static/"):
+        # 1 year, immutable — safe because we'll bump filenames if needed
+        response.headers["Cache-Control"] = "public, max-age=31536000, immutable"
+    return response
+
 # Routers
 # Scoped CORS: only for Mini App JSON routes under /api/miniapp
 _MINIAPP_ORIGINS = {
