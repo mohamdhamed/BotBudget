@@ -9,3 +9,6 @@ exports/
 *.log
 .idea/
 .vscode/
+
+# Built Tailwind CSS (generated in Docker build)
+dashboard/static/css/tailwind.css
